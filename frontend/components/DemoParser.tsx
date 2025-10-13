@@ -75,11 +75,18 @@ const createWorkerCode = () => {
         }
 
         try {
+          self.postMessage({ type: 'log', message: 'Starting to parse demo...' });
+          
           const uint8Array = new Uint8Array(buffer);
+          self.postMessage({ type: 'log', message: 'Buffer size: ' + uint8Array.length });
           
           parseDemo(uint8Array, (result) => {
             try {
+              self.postMessage({ type: 'log', message: 'Raw result received from WASM' });
+              
               const data = JSON.parse(result);
+              self.postMessage({ type: 'log', message: 'Data parsed successfully' });
+              self.postMessage({ type: 'log', message: 'Map name: ' + (data.header?.mapName || 'N/A') });
               
               if ('error' in data) {
                 self.postMessage({
@@ -127,18 +134,25 @@ export default function DemoParser() {
     const wasmWorker = new Worker(workerUrl);
 
     wasmWorker.onmessage = (e) => {
-      const { type, data, error: workerError } = e.data;
+      const { type, data, error: workerError, message } = e.data;
 
       if (type === "ready") {
         setWasmReady(true);
       } else if (type === "result") {
+        console.log("Parse result received:", data);
+        console.log("Header:", data.header);
+        console.log("Map name:", data.header?.mapName);
         setParseResult(data);
         setLoading(false);
       } else if (type === "error") {
+        console.error("Worker error:", workerError);
         setError(workerError);
         setLoading(false);
       } else if (type === "wasm-error") {
+        console.error("WASM error:", workerError);
         setWasmError(workerError);
+      } else if (type === "log") {
+        console.log("[Worker]", message);
       }
     };
 

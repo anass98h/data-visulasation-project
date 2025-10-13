@@ -668,7 +668,7 @@ func parseDemoInternal(data js.Value, callback js.Value, optionsArgs []js.Value)
 			// If we want sampling at ~10 ticks, calculate interval based on actual tick rate
 			// For 64 tick: 64/10 = ~6 ticks interval
 			// For 128 tick: 128/10 = ~12 ticks interval
-			actualTickInterval = int(tickRate / 10.0)
+			// actualTickInterval = int(tickRate / 10.0)
 			if actualTickInterval < 1 {
 				actualTickInterval = 1
 			}
