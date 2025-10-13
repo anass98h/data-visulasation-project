@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Play, Pause, SkipBack, SkipForward, Upload } from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, AlertCircle } from "lucide-react";
 
 // Map coordinates
 const MAP_CONFIG = {
@@ -19,17 +19,35 @@ const MAP_CONFIG = {
   },
 };
 
-const CS2MapRenderer = () => {
-  const [matchData, setMatchData] = useState(null);
+const CS2MapRenderer = ({ matchData: externalMatchData }) => {
+  const [matchData, setMatchData] = useState(externalMatchData);
   const [currentTick, setCurrentTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [selectedRound, setSelectedRound] = useState(0);
   const [radarImage, setRadarImage] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
-  const playerStatesRef = useRef(new Map()); // Persistent player states
+  const playerStatesRef = useRef(new Map());
+
+  // Update when external data changes
+  useEffect(() => {
+    if (externalMatchData) {
+      setMatchData(externalMatchData);
+      setCurrentTick(externalMatchData.rounds?.[0]?.startTick || 0);
+      playerStatesRef.current.clear();
+
+      // Load radar image
+      const mapName = externalMatchData.header?.mapName || "de_ancient";
+      const mapConfig = MAP_CONFIG[mapName];
+      if (mapConfig?.radarImage) {
+        const img = new Image();
+        img.onload = () => setRadarImage(img);
+        img.onerror = () => console.log("Radar image not found");
+        img.src = mapConfig.radarImage;
+      }
+    }
+  }, [externalMatchData]);
 
   // Index ticks by tick number for O(1) lookup
   const tickIndex = useMemo(() => {
@@ -44,63 +62,6 @@ const CS2MapRenderer = () => {
     });
     return index;
   }, [matchData]);
-
-  // Load JSON from public folder
-  useEffect(() => {
-    const loadMatchData = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch("/match_data.json");
-        if (!response.ok) {
-          console.error("Failed to load match data");
-          setIsLoading(false);
-          return;
-        }
-
-        const data = await response.json();
-        setMatchData(data);
-        setCurrentTick(data.rounds?.[0]?.startTick || 0);
-        setIsLoading(false);
-
-        // Load radar image
-        const mapName = data.header?.mapName || "de_ancient";
-        const mapConfig = MAP_CONFIG[mapName];
-
-        if (mapConfig?.radarImage) {
-          const img = new Image();
-          img.onload = () => setRadarImage(img);
-          img.onerror = () => console.error("Failed to load radar image");
-          img.src = mapConfig.radarImage;
-        }
-      } catch (error) {
-        console.error("Error loading match data:", error);
-        setIsLoading(false);
-      }
-    };
-
-    loadMatchData();
-  }, []);
-
-  // File upload handler
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      setIsLoading(true);
-      const text = await file.text();
-      const data = JSON.parse(text);
-      setMatchData(data);
-      setCurrentTick(data.rounds?.[0]?.startTick || 0);
-      setIsLoading(false);
-
-      const mapName = data.header?.mapName || "de_ancient";
-      const mapConfig = MAP_CONFIG[mapName];
-      if (mapConfig?.radarImage) {
-        const img = new Image();
-        img.onload = () => setRadarImage(img);
-        img.src = mapConfig.radarImage;
-      }
-    }
-  };
 
   // Convert game coordinates to canvas coordinates
   const gameToCanvas = (x, y, canvasWidth, canvasHeight) => {
@@ -142,7 +103,6 @@ const CS2MapRenderer = () => {
       const existingPlayer = playerStatesRef.current.get(playerId);
 
       if (existingPlayer) {
-        // Player exists - update with smooth transition
         existingPlayer.targetX = player.x;
         existingPlayer.targetY = player.y;
         existingPlayer.health = player.health;
@@ -150,13 +110,11 @@ const CS2MapRenderer = () => {
         existingPlayer.side = player.side;
         existingPlayer.name = player.name;
 
-        // If no current position set, jump to target immediately
         if (existingPlayer.currentX === undefined) {
           existingPlayer.currentX = player.x;
           existingPlayer.currentY = player.y;
         }
       } else {
-        // New player - add to states
         playerStatesRef.current.set(playerId, {
           currentX: player.x,
           currentY: player.y,
@@ -182,12 +140,11 @@ const CS2MapRenderer = () => {
       }
 
       // Draw all players with smooth interpolation
-      playerStatesRef.current.forEach((playerState, playerId) => {
-        // Skip if no valid position
+      playerStatesRef.current.forEach((playerState) => {
         if (!playerState.targetX || !playerState.targetY) return;
 
         // Smoothly move current position towards target
-        const lerpSpeed = 0.3; // Higher = faster movement, lower = smoother
+        const lerpSpeed = 0.3;
         playerState.currentX +=
           (playerState.targetX - playerState.currentX) * lerpSpeed;
         playerState.currentY +=
@@ -200,7 +157,7 @@ const CS2MapRenderer = () => {
           height
         );
 
-        // Clamp position to map bounds instead of skipping
+        // Clamp position to map bounds
         const clampedPos = {
           x: Math.max(0, Math.min(width, pos.x)),
           y: Math.max(0, Math.min(height, pos.y)),
@@ -210,7 +167,6 @@ const CS2MapRenderer = () => {
         if (!playerState.isAlive) {
           ctx.font = "20px sans-serif";
           ctx.fillText("💀", clampedPos.x - 10, clampedPos.y + 8);
-
           ctx.fillStyle = "#999";
           ctx.font = "bold 10px sans-serif";
           ctx.fillText(playerState.name, clampedPos.x + 14, clampedPos.y + 4);
@@ -253,7 +209,7 @@ const CS2MapRenderer = () => {
     };
   }, [matchData, currentTick, radarImage, tickIndex]);
 
-  // Playback animation - don't stop when round ends, let it continue
+  // Playback animation - auto-restart when finished
   useEffect(() => {
     if (!isPlaying || !matchData) return;
 
@@ -263,11 +219,10 @@ const CS2MapRenderer = () => {
     const interval = setInterval(() => {
       setCurrentTick((prev) => {
         const next = prev + 1;
-        // Keep playing even after round ends (for a few more ticks to show final deaths)
         if (next >= round.endTick + 100) {
-          // Add buffer ticks after round end
-          setIsPlaying(false);
-          return round.endTick + 100;
+          setCurrentTick(round.startTick);
+          playerStatesRef.current.clear();
+          return round.startTick;
         }
         return next;
       });
@@ -278,12 +233,17 @@ const CS2MapRenderer = () => {
 
   const round = getCurrentRound();
 
-  if (isLoading) {
+  if (!matchData) {
     return (
-      <div className="w-full h-[600px] bg-gray-900 text-white flex items-center justify-center rounded-lg">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p>Loading match data...</p>
+      <div className="w-full bg-gray-900 text-white rounded-lg overflow-hidden">
+        <div className="flex items-center justify-center bg-gray-800 h-[600px]">
+          <div className="text-center p-8">
+            <AlertCircle size={64} className="mx-auto mb-4 text-gray-600" />
+            <h3 className="text-xl font-semibold mb-2">No Match Data</h3>
+            <p className="text-gray-400">
+              Use the upload button above to load a match
+            </p>
+          </div>
         </div>
       </div>
     );
@@ -292,132 +252,106 @@ const CS2MapRenderer = () => {
   return (
     <div className="w-full bg-gray-900 text-white rounded-lg overflow-hidden">
       <div className="flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-700">
-          <div>
-            <h2 className="text-xl font-bold">CS2 Match Replay</h2>
-            {matchData && (
-              <p className="text-sm text-gray-400">
-                {matchData.header?.mapName} - Tick Rate:{" "}
-                {matchData.header?.tickRate}
-              </p>
-            )}
-          </div>
-
-          <label className="px-4 py-2 bg-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 flex items-center gap-2 text-sm">
-            <Upload size={16} />
-            Upload Match
-            <input
-              type="file"
-              accept=".json"
-              onChange={handleFileUpload}
-              className="hidden"
-            />
-          </label>
+        <div className="p-4 border-b border-gray-700">
+          <h2 className="text-xl font-bold">CS2 Match Replay</h2>
+          <p className="text-sm text-gray-400">
+            {matchData.header?.mapName} - Tick Rate:{" "}
+            {matchData.header?.tickRate}
+          </p>
         </div>
 
-        {matchData ? (
-          <>
-            {/* Canvas */}
-            <div className="bg-gray-800">
-              <canvas
-                ref={canvasRef}
-                width={1024}
-                height={1024}
+        <div className="bg-gray-800">
+          <canvas
+            ref={canvasRef}
+            width={1024}
+            height={1024}
+            className="w-full"
+            style={{ maxHeight: "600px", objectFit: "contain" }}
+          />
+        </div>
+
+        <div className="bg-gray-800 p-4 space-y-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                setCurrentTick(round?.startTick || 0);
+                playerStatesRef.current.clear();
+              }}
+              className="p-2 bg-gray-700 rounded hover:bg-gray-600"
+            >
+              <SkipBack size={18} />
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-2 bg-blue-600 rounded hover:bg-blue-700"
+            >
+              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
+            </button>
+
+            <button
+              onClick={() => setCurrentTick(round?.endTick || 0)}
+              className="p-2 bg-gray-700 rounded hover:bg-gray-600"
+            >
+              <SkipForward size={18} />
+            </button>
+
+            <div className="flex-1">
+              <input
+                type="range"
+                min={round?.startTick || 0}
+                max={round?.endTick || 1000}
+                value={currentTick}
+                onChange={(e) => setCurrentTick(Number(e.target.value))}
                 className="w-full"
-                style={{ maxHeight: "600px", objectFit: "contain" }}
               />
-            </div>
-
-            {/* Controls */}
-            <div className="bg-gray-800 p-4 space-y-3">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setCurrentTick(round?.startTick || 0)}
-                  className="p-2 bg-gray-700 rounded hover:bg-gray-600"
-                >
-                  <SkipBack size={18} />
-                </button>
-
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className="p-2 bg-blue-600 rounded hover:bg-blue-700"
-                >
-                  {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-                </button>
-
-                <button
-                  onClick={() => setCurrentTick(round?.endTick || 0)}
-                  className="p-2 bg-gray-700 rounded hover:bg-gray-600"
-                >
-                  <SkipForward size={18} />
-                </button>
-
-                <div className="flex-1">
-                  <input
-                    type="range"
-                    min={round?.startTick || 0}
-                    max={round?.endTick || 1000}
-                    value={currentTick}
-                    onChange={(e) => setCurrentTick(Number(e.target.value))}
-                    className="w-full"
-                  />
-                  <div className="text-xs text-gray-400 mt-1">
-                    Tick: {currentTick} / {round?.endTick || 0}
-                  </div>
-                </div>
-
-                <select
-                  value={playbackSpeed}
-                  onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-                  className="px-3 py-2 bg-gray-700 rounded text-sm"
-                >
-                  <option value="1">1x</option>
-                  <option value="2">2x</option>
-                  <option value="5">5x</option>
-                  <option value="10">10x</option>
-                </select>
-              </div>
-
-              <div className="flex items-center gap-3 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <label className="text-sm">Round:</label>
-                  <select
-                    value={selectedRound}
-                    onChange={(e) => {
-                      const idx = Number(e.target.value);
-                      setSelectedRound(idx);
-                      setCurrentTick(matchData.rounds[idx]?.startTick || 0);
-                      playerStatesRef.current.clear(); // Clear on round change
-                    }}
-                    className="px-3 py-1 bg-gray-700 rounded text-sm"
-                  >
-                    {matchData.rounds?.map((r, idx) => (
-                      <option key={idx} value={idx}>
-                        Round {r.roundNum} ({r.winner})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {round && (
-                  <div className="ml-auto text-sm">
-                    <span className="text-blue-400">CT: {round.ctScore}</span>
-                    {" - "}
-                    <span className="text-red-400">T: {round.tScore}</span>
-                  </div>
-                )}
+              <div className="text-xs text-gray-400 mt-1">
+                Tick: {currentTick} / {round?.endTick || 0}
               </div>
             </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center text-gray-400 h-[400px]">
-            <div className="text-center">
-              <Upload size={48} className="mx-auto mb-4" />
-              <p>Failed to load match data</p>
-            </div>
+
+            <select
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+              className="px-3 py-2 bg-gray-700 rounded text-sm"
+            >
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+            </select>
           </div>
-        )}
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <label className="text-sm">Round:</label>
+              <select
+                value={selectedRound}
+                onChange={(e) => {
+                  const idx = Number(e.target.value);
+                  setSelectedRound(idx);
+                  setCurrentTick(matchData.rounds[idx]?.startTick || 0);
+                  playerStatesRef.current.clear();
+                }}
+                className="px-3 py-1 bg-gray-700 rounded text-sm"
+              >
+                {matchData.rounds?.map((r, idx) => (
+                  <option key={idx} value={idx}>
+                    Round {r.roundNum} ({r.winner})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {round && (
+              <div className="ml-auto text-sm">
+                <span className="text-blue-400">CT: {round.ctScore}</span>
+                {" - "}
+                <span className="text-red-400">T: {round.tScore}</span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

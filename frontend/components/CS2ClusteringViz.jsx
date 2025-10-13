@@ -1,34 +1,53 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { TrendingUp, Target, Clock, Users, AlertCircle } from "lucide-react";
+import { TrendingUp, Target, Clock, Upload } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
 
 const CS2Dashboard = () => {
   const [matchData, setMatchData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load match data
+  // Load match data from public folder
   useEffect(() => {
     const loadMatchData = async () => {
       setIsLoading(true);
       try {
         const response = await fetch("/match_data.json");
         if (!response.ok) {
-          console.error("Failed to load match data");
+          console.log("No match_data.json found - user can upload their own");
           setIsLoading(false);
+          setMatchData(null);
           return;
         }
         const data = await response.json();
         setMatchData(data);
         setIsLoading(false);
       } catch (error) {
-        console.error("Error loading match data:", error);
+        console.log("Error loading match data - user can upload their own");
         setIsLoading(false);
+        setMatchData(null);
       }
     };
 
     loadMatchData();
   }, []);
+
+  // Handle file upload
+  const handleFileUpload = async (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      setIsLoading(true);
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        setMatchData(data);
+        setIsLoading(false);
+      } catch (error) {
+        console.error("Error parsing JSON file:", error);
+        setIsLoading(false);
+      }
+    }
+  };
 
   // Calculate stats from real data
   const stats = matchData
@@ -45,7 +64,7 @@ const CS2Dashboard = () => {
 
   if (isLoading) {
     return (
-      <div className="w-full h-screen bg-gray-900 text-white flex items-center justify-center">
+      <div className="w-full min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
           <p>Loading match data...</p>
@@ -56,13 +75,30 @@ const CS2Dashboard = () => {
 
   if (!matchData) {
     return (
-      <div className="w-full h-screen bg-gray-900 text-white flex items-center justify-center">
-        <div className="text-center">
-          <AlertCircle size={48} className="mx-auto mb-4" />
-          <p>Failed to load match data</p>
-          <p className="text-sm text-gray-400 mt-2">
-            Make sure match_data.json is in the public folder
-          </p>
+      <div className="w-full min-h-screen bg-gray-900 text-white p-4">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+            <div className="flex justify-between items-center">
+              <div className="flex-1">
+                <h1 className="text-3xl font-bold mb-2">CS2 Match Analysis</h1>
+                <p className="text-gray-400">
+                  Upload a match file to view analysis
+                </p>
+              </div>
+              <label className="px-6 py-3 bg-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 flex items-center gap-2">
+                <Upload size={20} />
+                Upload Match Data
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
+            </div>
+          </div>
+
+          <CS2MapRenderer matchData={null} />
         </div>
       </div>
     );
@@ -71,7 +107,6 @@ const CS2Dashboard = () => {
   return (
     <div className="w-full min-h-screen bg-gray-900 text-white p-4">
       <div className="max-w-7xl mx-auto space-y-4">
-        {/* Header */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
           <div className="flex justify-between items-start mb-4">
             <div>
@@ -80,13 +115,24 @@ const CS2Dashboard = () => {
                 {stats.totalRounds} rounds on {stats.mapName}
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-sm text-gray-400">Tick Rate</div>
-              <div className="text-2xl font-bold">{stats.tickRate}</div>
+            <div className="flex items-center gap-4">
+              <div className="text-right">
+                <div className="text-sm text-gray-400">Tick Rate</div>
+                <div className="text-2xl font-bold">{stats.tickRate}</div>
+              </div>
+              <label className="px-4 py-2 bg-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 flex items-center gap-2">
+                <Upload size={16} />
+                Upload New
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={handleFileUpload}
+                  className="hidden"
+                />
+              </label>
             </div>
           </div>
 
-          {/* Quick Stats */}
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-gray-700 p-4 rounded-lg border border-gray-600">
               <div className="text-sm text-gray-400 mb-1">Total Rounds</div>
@@ -109,8 +155,7 @@ const CS2Dashboard = () => {
           </div>
         </div>
 
-        {/* CS2 Map Renderer */}
-        <CS2MapRenderer />
+        <CS2MapRenderer matchData={matchData} />
 
         {/* Round Summary */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
