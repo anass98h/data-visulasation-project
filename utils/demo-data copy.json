@@ -1,0 +1,26 @@
+{
+    "id": 1001,
+    "name": "Widget Pro",
+    "details": {
+        "version": 4.5,
+        "is_active": true,
+        "last_update": "2025-01-01T12:00:00Z",
+        "metadata": null
+    },
+    "tags": [
+        {
+            "label": "new",
+            "value": "A"
+        },
+        {
+            "label": "featured",
+            "value": "B"
+        }
+    ],
+    "metrics": [
+        10,
+        20,
+        30
+    ],
+    "history": []
+}

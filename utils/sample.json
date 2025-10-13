@@ -1,0 +1,447 @@
+{
+  "header": {
+    "clientName": "string",
+    "mapName": "string",
+    "networkProtocol": "number",
+    "serverName": "string",
+    "tickRate": "number",
+    "__example__": {
+      "clientName": "",
+      "mapName": "de_ancient",
+      "networkProtocol": 0,
+      "serverName": "",
+      "tickRate": 64
+    }
+  },
+  "ticks": [
+    {
+      "tick": "number",
+      "steamId": "number",
+      "name": "string",
+      "team": "string",
+      "side": "string",
+      "x": "number",
+      "y": "number",
+      "viewX": "number",
+      "viewY": "number",
+      "velocityX": "number",
+      "velocityY": "number",
+      "isAlive": "number",
+      "health": "number",
+      "armor": "number",
+      "hasHelmet": "number",
+      "hasDefuseKit": "number",
+      "money": "number",
+      "equipmentValue": "number",
+      "activeWeapon": "string",
+      "isScoped": "number",
+      "isDucking": "number",
+      "isWalking": "number",
+      "__example__": {
+        "tick": 463,
+        "steamId": 76561198819796530,
+        "name": "smokeynaga7a",
+        "team": "RUBY",
+        "side": "T",
+        "x": -584,
+        "y": -2288,
+        "viewX": 90,
+        "viewY": 0,
+        "velocityX": 0,
+        "velocityY": 0,
+        "isAlive": true,
+        "health": 100,
+        "armor": 100,
+        "hasHelmet": false,
+        "hasDefuseKit": false,
+        "money": 0,
+        "equipmentValue": 650,
+        "activeWeapon": "Knife",
+        "isScoped": false,
+        "isDucking": false,
+        "isWalking": false
+      }
+    },
+    {
+      "__example__": {
+        "tick": 463,
+        "steamId": 76561198819796530,
+        "name": "smokeynaga7a",
+        "team": "RUBY",
+        "side": "T"
+      }
+    }
+  ],
+  "kills": [
+    {
+      "tick": "number",
+      "attackerId": "number",
+      "attackerName": "string",
+      "attackerTeam": "string",
+      "attackerSide": "string",
+      "victimId": "number",
+      "victimName": "string",
+      "victimTeam": "string",
+      "victimSide": "string",
+      "assisterId": "number",
+      "assisterName": "string",
+      "weapon": "string",
+      "weaponClass": "string",
+      "isHeadshot": "number",
+      "isWallbang": "number",
+      "penetratedObjects": "number",
+      "isFlashAssist": "number",
+      "isThroughSmoke": "number",
+      "attackerX": "number",
+      "attackerY": "number",
+      "victimX": "number",
+      "victimY": "number",
+      "__example__": {
+        "tick": 1739,
+        "attackerId": 76561198930218130,
+        "attackerName": "Tapewaare",
+        "attackerTeam": "CPH Wolves",
+        "attackerSide": "CT",
+        "victimId": 76561198107540060,
+        "victimName": "Kristou",
+        "victimTeam": "CPH Wolves",
+        "victimSide": "CT",
+        "assisterId": 0,
+        "assisterName": "",
+        "weapon": "Knife",
+        "weaponClass": "Equipment",
+        "isHeadshot": false,
+        "isWallbang": false,
+        "penetratedObjects": 0,
+        "isFlashAssist": false,
+        "isThroughSmoke": false,
+        "attackerX": -310.325927734375,
+        "attackerY": 1018.028076171875,
+        "victimX": -342.32958984375,
+        "victimY": 1018.0596923828125
+      }
+    },
+    {
+      "__example__": {
+        "tick": 1739,
+        "attackerId": 76561198930218130,
+        "attackerName": "Tapewaare",
+        "attackerTeam": "CPH Wolves",
+        "attackerSide": "CT"
+      }
+    }
+  ],
+  "damages": [
+    {
+      "tick": "number",
+      "attackerId": "number",
+      "victimId": "number",
+      "weapon": "string",
+      "weaponClass": "string",
+      "damage": "number",
+      "damageArmor": "number",
+      "health": "number",
+      "armor": "number",
+      "hitgroup": "string",
+      "__example__": {
+        "tick": 1531,
+        "attackerId": 76561198930218130,
+        "victimId": 76561198107540060,
+        "weapon": "Knife",
+        "weaponClass": "Equipment",
+        "damage": 31,
+        "damageArmor": 2,
+        "health": 69,
+        "armor": 98,
+        "hitgroup": "Generic"
+      }
+    },
+    {
+      "__example__": {
+        "tick": 1531,
+        "attackerId": 76561198930218130,
+        "victimId": 76561198107540060,
+        "weapon": "Knife",
+        "weaponClass": "Equipment"
+      }
+    }
+  ],
+  "weaponFires": [
+    {
+      "tick": "number",
+      "shooterId": "number",
+      "shooterName": "string",
+      "weapon": "string",
+      "x": "number",
+      "y": "number",
+      "__example__": {
+        "tick": 1531,
+        "shooterId": 76561198930218130,
+        "shooterName": "Tapewaare",
+        "weapon": "Knife",
+        "x": -344.1141357421875,
+        "y": 1577.527099609375
+      }
+    },
+    {
+      "__example__": {
+        "tick": 1531,
+        "shooterId": 76561198930218130,
+        "shooterName": "Tapewaare",
+        "weapon": "Knife",
+        "x": -344.1141357421875
+      }
+    }
+  ],
+  "flashes": [
+    {
+      "tick": "number",
+      "attackerId": "number",
+      "attackerName": "string",
+      "victimId": "number",
+      "victimName": "string",
+      "flashDuration": "number",
+      "__example__": {
+        "tick": 7045,
+        "attackerId": 76561198107540060,
+        "attackerName": "Kristou",
+        "victimId": 76561198292471500,
+        "victimName": "fozil",
+        "flashDuration": 0.5304059
+      }
+    },
+    {
+      "__example__": {
+        "tick": 7045,
+        "attackerId": 76561198107540060,
+        "attackerName": "Kristou",
+        "victimId": 76561198292471500,
+        "victimName": "fozil"
+      }
+    }
+  ],
+  "grenades": [
+    {
+      "tick": "number",
+      "throwerId": "number",
+      "throwerName": "string",
+      "throwerTeam": "string",
+      "throwerSide": "string",
+      "grenadeType": "string",
+      "x": "number",
+      "y": "number",
+      "eventType": "string",
+      "__example__": {
+        "tick": 3363,
+        "throwerId": 76561198075676830,
+        "throwerName": "-TruNiQ",
+        "throwerTeam": "RUBY",
+        "throwerSide": "T",
+        "grenadeType": "Decoy Grenade",
+        "x": -152.1875,
+        "y": -1863.875,
+        "eventType": "thrown"
+      }
+    },
+    {
+      "__example__": {
+        "tick": 3363,
+        "throwerId": 76561198075676830,
+        "throwerName": "-TruNiQ",
+        "throwerTeam": "RUBY",
+        "throwerSide": "T"
+      }
+    }
+  ],
+  "smokes": [
+    {
+      "tick": "number",
+      "throwerId": "number",
+      "throwerName": "string",
+      "x": "number",
+      "y": "number",
+      "eventType": "string",
+      "__example__": {
+        "tick": 6718,
+        "throwerId": 0,
+        "throwerName": "",
+        "x": 660.8486328125,
+        "y": 414.1254577636719,
+        "eventType": "start"
+      }
+    },
+    {
+      "__example__": {
+        "tick": 6718,
+        "throwerId": 0,
+        "throwerName": "",
+        "x": 660.8486328125,
+        "y": 414.1254577636719
+      }
+    }
+  ],
+  "bombs": [
+    {
+      "tick": "number",
+      "event": "string",
+      "playerId": "number",
+      "playerName": "string",
+      "site": "string",
+      "x": "number",
+      "y": "number",
+      "__example__": {
+        "tick": 7758,
+        "event": "planted",
+        "playerId": 76561198073183780,
+        "playerName": "n1Xen",
+        "site": "B",
+        "x": 790.6088256835938,
+        "y": 4.940638542175293
+      }
+    },
+    {
+      "__example__": {
+        "tick": 7758,
+        "event": "planted",
+        "playerId": 76561198073183780,
+        "playerName": "n1Xen",
+        "site": "B"
+      }
+    }
+  ],
+  "rounds": [
+    {
+      "roundNum": "number",
+      "startTick": "number",
+      "endTick": "number",
+      "freezeTimeEndTick": "number",
+      "winner": "string",
+      "reason": "string",
+      "ctScore": "number",
+      "tScore": "number",
+      "winnerSide": "string",
+      "ctStartMoney": "number",
+      "tStartMoney": "number",
+      "ctEquipmentValue": "number",
+      "tEquipmentValue": "number",
+      "bombPlantTick": "number",
+      "__example__": {
+        "roundNum": 1,
+        "startTick": 460,
+        "endTick": 2656,
+        "freezeTimeEndTick": 1469,
+        "winner": "T",
+        "reason": "TerroristsWin",
+        "ctScore": 0,
+        "tScore": 1,
+        "winnerSide": "T",
+        "ctStartMoney": 0,
+        "tStartMoney": 0,
+        "ctEquipmentValue": 3250,
+        "tEquipmentValue": 3250,
+        "bombPlantTick": -1
+      }
+    },
+    {
+      "__example__": {
+        "roundNum": 1,
+        "startTick": 460,
+        "endTick": 2656,
+        "freezeTimeEndTick": 1469,
+        "winner": "T"
+      }
+    }
+  ],
+  "players": "[]",
+  "__example__": {
+    "header": {
+      "clientName": "",
+      "mapName": "de_ancient",
+      "networkProtocol": 0,
+      "serverName": "",
+      "tickRate": 64
+    },
+    "ticks": [
+      {
+        "tick": 463,
+        "steamId": 76561198819796530,
+        "name": "smokeynaga7a",
+        "team": "RUBY",
+        "side": "T"
+      }
+    ],
+    "kills": [
+      {
+        "tick": 1739,
+        "attackerId": 76561198930218130,
+        "attackerName": "Tapewaare",
+        "attackerTeam": "CPH Wolves",
+        "attackerSide": "CT"
+      }
+    ],
+    "damages": [
+      {
+        "tick": 1531,
+        "attackerId": 76561198930218130,
+        "victimId": 76561198107540060,
+        "weapon": "Knife",
+        "weaponClass": "Equipment"
+      }
+    ],
+    "weaponFires": [
+      {
+        "tick": 1531,
+        "shooterId": 76561198930218130,
+        "shooterName": "Tapewaare",
+        "weapon": "Knife",
+        "x": -344.1141357421875
+      }
+    ],
+    "flashes": [
+      {
+        "tick": 7045,
+        "attackerId": 76561198107540060,
+        "attackerName": "Kristou",
+        "victimId": 76561198292471500,
+        "victimName": "fozil"
+      }
+    ],
+    "grenades": [
+      {
+        "tick": 3363,
+        "throwerId": 76561198075676830,
+        "throwerName": "-TruNiQ",
+        "throwerTeam": "RUBY",
+        "throwerSide": "T"
+      }
+    ],
+    "smokes": [
+      {
+        "tick": 6718,
+        "throwerId": 0,
+        "throwerName": "",
+        "x": 660.8486328125,
+        "y": 414.1254577636719
+      }
+    ],
+    "bombs": [
+      {
+        "tick": 7758,
+        "event": "planted",
+        "playerId": 76561198073183780,
+        "playerName": "n1Xen",
+        "site": "B"
+      }
+    ],
+    "rounds": [
+      {
+        "roundNum": 1,
+        "startTick": 460,
+        "endTick": 2656,
+        "freezeTimeEndTick": 1469,
+        "winner": "T"
+      }
+    ],
+    "players": []
+  }
+}
