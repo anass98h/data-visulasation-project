@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,45 +33,126 @@ interface ParseResult {
   players: any[];
 }
 
+// Create worker code as a string
+const createWorkerCode = () => {
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "";
+  return `
+    let wasmReady = false;
+
+    const loadWasm = async () => {
+      try {
+        importScripts('${baseUrl}/wasm_exec.js');
+        
+        const go = new Go();
+        const result = await WebAssembly.instantiateStreaming(
+          fetch('${baseUrl}/demo_processor.wasm'),
+          go.importObject
+        );
+        
+        go.run(result.instance);
+        wasmReady = true;
+        self.postMessage({ type: 'ready' });
+      } catch (err) {
+        self.postMessage({
+          type: 'wasm-error',
+          error: 'Failed to load WASM: ' + err.message
+        });
+      }
+    };
+
+    loadWasm();
+
+    self.onmessage = async (e) => {
+      const { type, buffer, options } = e.data;
+
+      if (type === 'parse') {
+        if (!wasmReady) {
+          self.postMessage({
+            type: 'error',
+            error: 'WASM not ready yet'
+          });
+          return;
+        }
+
+        try {
+          const uint8Array = new Uint8Array(buffer);
+          
+          parseDemo(uint8Array, (result) => {
+            try {
+              const data = JSON.parse(result);
+              
+              if ('error' in data) {
+                self.postMessage({
+                  type: 'error',
+                  error: data.error
+                });
+              } else {
+                self.postMessage({
+                  type: 'result',
+                  data: data
+                });
+              }
+            } catch (err) {
+              self.postMessage({
+                type: 'error',
+                error: 'Parse error: ' + err.message
+              });
+            }
+          }, options);
+        } catch (err) {
+          self.postMessage({
+            type: 'error',
+            error: 'Processing error: ' + err.message
+          });
+        }
+      }
+    };
+  `;
+};
+
 export default function DemoParser() {
   const [wasmReady, setWasmReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [wasmError, setWasmError] = useState<string | null>(null);
+  const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
-    const loadWasm = async () => {
-      try {
-        if (!window.Go) {
-          setWasmError(
-            "Go WASM runtime not loaded. Make sure wasm_exec.js is included."
-          );
-          return;
-        }
+    // Create worker from blob
+    const workerCode = createWorkerCode();
+    const blob = new Blob([workerCode], { type: "application/javascript" });
+    const workerUrl = URL.createObjectURL(blob);
 
-        const go = new window.Go();
-        const result = await WebAssembly.instantiateStreaming(
-          fetch("/demo_processor.wasm"),
-          go.importObject
-        );
-        go.run(result.instance);
+    const wasmWorker = new Worker(workerUrl);
+
+    wasmWorker.onmessage = (e) => {
+      const { type, data, error: workerError } = e.data;
+
+      if (type === "ready") {
         setWasmReady(true);
-      } catch (err) {
-        setWasmError(
-          `Failed to load WASM: ${
-            err instanceof Error ? err.message : "Unknown error"
-          }`
-        );
+      } else if (type === "result") {
+        setParseResult(data);
+        setLoading(false);
+      } else if (type === "error") {
+        setError(workerError);
+        setLoading(false);
+      } else if (type === "wasm-error") {
+        setWasmError(workerError);
       }
     };
 
-    loadWasm();
+    workerRef.current = wasmWorker;
+
+    return () => {
+      wasmWorker.terminate();
+      URL.revokeObjectURL(workerUrl);
+    };
   }, []);
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !workerRef.current) return;
 
     console.log("File selected:", file.name);
     setLoading(true);
@@ -80,41 +161,12 @@ export default function DemoParser() {
 
     try {
       const buffer = await file.arrayBuffer();
-      const uint8Array = new Uint8Array(buffer);
-      console.log("Buffer size:", uint8Array.length);
 
-      window.parseDemo(
-        uint8Array,
-        (result) => {
-          // console.log("Raw result from WASM:", result);
-
-          try {
-            const data = JSON.parse(result) as ParseResult;
-            console.log("Parsed data:", data);
-            console.log("Header:", data.header);
-            console.log("Map name:", data.header?.mapName);
-
-            if ("error" in data) {
-              console.error("Error in parsed data:", (data as any).error);
-              setError((data as any).error);
-              setLoading(false);
-            } else {
-              console.log("Setting parse result:", data);
-              setParseResult(data);
-              setLoading(false);
-            }
-          } catch (err) {
-            console.error("Parse error:", err);
-            setError(
-              `Error parsing result: ${
-                err instanceof Error ? err.message : "Unknown error"
-              }`
-            );
-            setLoading(false);
-          }
-        },
-        { tickInterval: 10, removeZ: true }
-      );
+      workerRef.current.postMessage({
+        type: "parse",
+        buffer: buffer,
+        options: { tickInterval: 10, removeZ: true },
+      });
     } catch (err) {
       console.error("File read error:", err);
       setError(
@@ -193,7 +245,6 @@ export default function DemoParser() {
           </CardHeader>
 
           <CardContent className="space-y-6">
-            {/* WASM Status */}
             {wasmError ? (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -216,7 +267,6 @@ export default function DemoParser() {
               </Alert>
             )}
 
-            {/* File Upload */}
             <div className="space-y-2">
               <label className="block">
                 <div className="border-2 border-dashed rounded-lg p-8 text-center hover:border-primary transition-colors cursor-pointer bg-white dark:bg-gray-800">
@@ -238,7 +288,6 @@ export default function DemoParser() {
               </label>
             </div>
 
-            {/* Loading State */}
             {loading && (
               <Alert>
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -248,7 +297,6 @@ export default function DemoParser() {
               </Alert>
             )}
 
-            {/* Error State */}
             {error && (
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
@@ -256,7 +304,6 @@ export default function DemoParser() {
               </Alert>
             )}
 
-            {/* Results */}
             {parseResult && (
               <div className="space-y-4">
                 <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20">
@@ -347,7 +394,6 @@ export default function DemoParser() {
                   </CardContent>
                 </Card>
 
-                {/* Player Stats Preview */}
                 {parseResult.players && parseResult.players.length > 0 && (
                   <Card>
                     <CardHeader>
