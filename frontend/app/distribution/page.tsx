@@ -73,15 +73,47 @@ export default function Home() {
     t_economy: economyData.t_economy.total_value
   } : undefined;
 
-  return <>
-  <div className="container mx-auto p-6 space-y-6">
-    <EconomyDropdown />
-    <Economy totalEconomy={totalEconomy}/>
-    <LineChart
-      data={lineChartData}
-      title={`${dropdownValue.toUpperCase()} Economy Over Rounds`}
-      description={`Track ${dropdownValue === 'ct' ? 'Counter-Terrorist' : 'Terrorist'} economy performance across game rounds`}
-    />
-  </div>
-  </>;
+  if (loading) {
+    return (
+      <div className="container mx-auto p-4 md:p-6 lg:p-8">
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-center space-y-4">
+            <div className="text-2xl font-semibold">Loading data...</div>
+            <div className="text-muted-foreground">Please wait while we fetch the match data</div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+      {/* Header Section */}
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Economy Distribution</h1>
+          <p className="text-muted-foreground mt-2">
+            Analyze team economy performance across game rounds
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-muted-foreground">Select Team:</span>
+          <EconomyDropdown
+            value={dropdownValue}
+            onValueChange={setDropdownValue}
+          />
+        </div>
+      </div>
+
+      {/* Economy Cards */}
+      <Economy totalEconomy={totalEconomy}/>
+
+      {/* Line Chart */}
+      <LineChart
+        data={lineChartData}
+        title={`${dropdownValue.toUpperCase()} Economy Over Rounds`}
+        description={`Track ${dropdownValue === 'ct' ? 'Counter-Terrorist' : 'Terrorist'} economy performance across game rounds`}
+      />
+    </div>
+  );
 }
