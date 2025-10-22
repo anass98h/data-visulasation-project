@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 
-export function economyDropdown() {
+export function EconomyDropdown() {
   return (
     <Select>
       <SelectTrigger className="w-[180px]">
