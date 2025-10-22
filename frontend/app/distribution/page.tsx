@@ -9,10 +9,8 @@ import * as distributionHelpers from "@/lib/distribution";
 
 
 export default function Home() {
-  console.log("🚀 Distribution page is rendering on server!");
-  console.log("Rendering Economy Component");
-
-
+  // console.log("🚀 Distribution page is rendering on server!");
+  // console.log("Rendering Economy Component");
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);

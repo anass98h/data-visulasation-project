@@ -19,7 +19,7 @@ const LineChart: React.FC<LineChartProps> = ({
   data,
   title = 'Economy Over Rounds',
   description = 'Track economy performance across game rounds',
-  xLabel = 'Round',
+  xLabel = 'Rounds',
   yLabel = 'Economy',
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
@@ -38,7 +38,7 @@ const LineChart: React.FC<LineChartProps> = ({
     const containerHeight = 400;
 
     // Set up margins and dimensions
-    const margin = { top: 20, right: 30, bottom: 50, left: 80 };
+    const margin = { top: 20, right: 60, bottom: 50, left: 80 };
     const width = containerWidth - margin.left - margin.right;
     const height = containerHeight - margin.top - margin.bottom;
 
@@ -53,9 +53,8 @@ const LineChart: React.FC<LineChartProps> = ({
     // Create scales
     const xScale = d3
       .scaleLinear()
-      .domain([d3.min(data.x) || 1, d3.max(data.x) || 1])
-      .range([0, width])
-      .nice(); // Extends the domain to nice round values
+      .domain([d3.min(data.x) || 1, d3.max(data.x) || 21])
+      .range([0, width]);
 
     const yScale = d3
       .scaleLinear()
@@ -107,10 +106,28 @@ const LineChart: React.FC<LineChartProps> = ({
       .attr('d', area);
 
     // Add X axis
+    // Create tick values dynamically based on number of rounds
+    const numRounds = data.x.length;
+    let tickValues: number[] = [];
+
+    if (numRounds <= 10) {
+      // Show all rounds if 10 or fewer
+      tickValues = data.x;
+    } else if (numRounds <= 20) {
+      // Show every 2nd round, plus first and last
+      tickValues = data.x.filter((val, i) => i === 0 || i === numRounds - 1 || val % 2 === 1);
+    } else if (numRounds <= 30) {
+      // Show every 3rd round, plus first and last
+      tickValues = data.x.filter((val, i) => i === 0 || i === numRounds - 1 || val % 3 === 0);
+    } else {
+      // Show every 5th round, plus first and last
+      tickValues = data.x.filter((val, i) => i === 0 || i === numRounds - 1 || val % 5 === 0);
+    }
+
     svg
       .append('g')
       .attr('transform', `translate(0,${height})`)
-      .call(d3.axisBottom(xScale).ticks(Math.min(data.x.length, 10)))
+      .call(d3.axisBottom(xScale).tickValues(tickValues).tickFormat(d3.format('d')))
       .attr('class', 'text-muted-foreground text-sm')
       .selectAll('text')
       .attr('class', 'fill-muted-foreground');

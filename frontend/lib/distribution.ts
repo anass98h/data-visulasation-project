@@ -83,7 +83,7 @@ export function calculateEconomy(data: any[]): Record<string, any> {
     return result;
 }
 
-//todo
+
 // The method work for extract the data for plot such as linchart or scatter plot
 // the input dataset can be:
 //   1. An array like [{a:...., b:...,c....}, {}]

@@ -1,5 +1,6 @@
-'use client'; 
+'use client';
 
+import { APP_CONFIG } from '@/config/app.config';
 
 // function that load the data
 export async function loadMatchData(where: 'file' | 'db') {
@@ -12,8 +13,8 @@ export async function loadMatchData(where: 'file' | 'db') {
 
 async function loadMatchDataFromFile() {
     //use fetch to load data from a file
-    const filePath = '/data/match_data.json';
-    console.log('📂 Loading data from:', filePath);
+    const filePath = APP_CONFIG.DATA_PATHS.MATCH_DATA;
+    // console.log('📂 Loading data from:', filePath);
 
     try {
         const response = await fetch(filePath);
