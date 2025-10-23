@@ -1,59 +1,53 @@
-'use client';
+"use client";
 
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-
-const Economy = ({totalEconomy}: {totalEconomy: any}) => {
-  console.log('Economy component is rendering');
+const Economy = ({ totalEconomy }: { totalEconomy: any }) => {
+  console.log("Economy component is rendering");
 
   if (!totalEconomy) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>CT Economy</CardTitle>
-            <CardDescription>Counter-Terrorist total economy</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>T Economy</CardTitle>
-            <CardDescription>Terrorist total economy</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">Loading...</div>
-          </CardContent>
-        </Card>
+        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+          <div className="mb-2">
+            <h3 className="text-lg font-semibold text-white">CT Economy</h3>
+            <p className="text-sm text-gray-400">
+              Counter-Terrorist total economy
+            </p>
+          </div>
+          <div className="text-2xl font-bold text-gray-500">Loading...</div>
+        </div>
+        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+          <div className="mb-2">
+            <h3 className="text-lg font-semibold text-white">T Economy</h3>
+            <p className="text-sm text-gray-400">Terrorist total economy</p>
+          </div>
+          <div className="text-2xl font-bold text-gray-500">Loading...</div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>CT Economy</CardTitle>
-          <CardDescription>Counter-Terrorist total economy</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            ${(totalEconomy.ct_economy ?? 0).toLocaleString()}
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <CardTitle>T Economy</CardTitle>
-          <CardDescription>Terrorist total economy</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="text-3xl font-bold text-primary">
-            ${(totalEconomy.t_economy ?? 0).toLocaleString()}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+        <div className="mb-2">
+          <h3 className="text-lg font-semibold text-white">CT Economy</h3>
+          <p className="text-sm text-gray-400">
+            Counter-Terrorist total economy
+          </p>
+        </div>
+        <div className="text-3xl font-bold text-blue-400">
+          ${(totalEconomy.ct_economy ?? 0).toLocaleString()}
+        </div>
+      </div>
+      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+        <div className="mb-2">
+          <h3 className="text-lg font-semibold text-white">T Economy</h3>
+          <p className="text-sm text-gray-400">Terrorist total economy</p>
+        </div>
+        <div className="text-3xl font-bold text-red-400">
+          ${(totalEconomy.t_economy ?? 0).toLocaleString()}
+        </div>
+      </div>
     </div>
   );
 };
