@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Play, Pause, SkipBack, SkipForward, AlertCircle } from "lucide-react";
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  AlertCircle,
+  FastForward,
+} from "lucide-react";
 
-// Map coordinates
 const MAP_CONFIG = {
   de_ancient: {
     minX: -2953,
@@ -12,32 +18,68 @@ const MAP_CONFIG = {
   },
   de_mirage: {
     minX: -3230,
-    maxX: 1713,
-    minY: -3401,
-    maxY: 1682,
+    maxX: 1890,
+    minY: -3407,
+    maxY: 1713,
     radarImage: "/radar_images/de_mirage_radar_psd.png",
   },
 };
 
-const CS2MapRenderer = ({ matchData: externalMatchData }) => {
+// Custom Tailwind classes for muted team colors for better dashboard integration
+const TEAM_COLORS = {
+  CT_MAIN: "#2563eb", // blue-700 equivalent
+  T_MAIN: "#dc2626", // red-700 equivalent
+};
+
+const CS2MapRenderer = ({
+  matchData: externalMatchData,
+  heatmapData: externalHeatmapData, // This now contains all round heatmaps (round_heatmaps_*.json)
+  teamMapping,
+  staticTeamMapping,
+  setCurrentRoundContext,
+}) => {
   const [matchData, setMatchData] = useState(externalMatchData);
+  const [allRoundHeatmapData, setAllRoundHeatmapData] =
+    useState(externalHeatmapData);
   const [currentTick, setCurrentTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [selectedRound, setSelectedRound] = useState(0);
   const [radarImage, setRadarImage] = useState(null);
+  const [showHeatmap, setShowHeatmap] = useState(false);
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const playerStatesRef = useRef(new Map());
 
-  // Update when external data changes
+  // Derive the currently displayed round number (1-indexed)
+  const currentRoundNum = matchData?.rounds?.[selectedRound]?.roundNum || 1;
+
+  // Use memo to get the specific heatmap data for the current round
+  const currentHeatmapData = useMemo(() => {
+    if (!allRoundHeatmapData?.roundHeatmaps) return null;
+    return allRoundHeatmapData.roundHeatmaps[String(currentRoundNum)] || null;
+  }, [allRoundHeatmapData, currentRoundNum]);
+
+  const getCurrentRound = () => {
+    if (!matchData?.rounds) return null;
+    return (
+      matchData.rounds.find(
+        (r) => currentTick >= r.startTick && currentTick <= r.endTick
+      ) || matchData.rounds[selectedRound]
+    );
+  };
+
   useEffect(() => {
     if (externalMatchData) {
       setMatchData(externalMatchData);
       setCurrentTick(externalMatchData.rounds?.[0]?.startTick || 0);
+      setSelectedRound(0);
       playerStatesRef.current.clear();
 
-      // Load radar image
+      if (setCurrentRoundContext) {
+        setCurrentRoundContext(externalMatchData.rounds?.[0]?.roundNum || 1);
+      }
+
       const mapName = externalMatchData.header?.mapName || "de_ancient";
       const mapConfig = MAP_CONFIG[mapName];
       if (mapConfig?.radarImage) {
@@ -47,9 +89,15 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
         img.src = mapConfig.radarImage;
       }
     }
-  }, [externalMatchData]);
+  }, [externalMatchData, setCurrentRoundContext]);
 
-  // Index ticks by tick number for O(1) lookup
+  useEffect(() => {
+    if (externalHeatmapData) {
+      // Store all round heatmap data
+      setAllRoundHeatmapData(externalHeatmapData);
+    }
+  }, [externalHeatmapData]);
+
   const tickIndex = useMemo(() => {
     if (!matchData?.ticks) return new Map();
     const index = new Map();
@@ -63,7 +111,6 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
     return index;
   }, [matchData]);
 
-  // Convert game coordinates to canvas coordinates
   const gameToCanvas = (x, y, canvasWidth, canvasHeight) => {
     const mapConfig =
       MAP_CONFIG[matchData?.header?.mapName] || MAP_CONFIG.de_ancient;
@@ -75,17 +122,75 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
     };
   };
 
-  // Get current round
-  const getCurrentRound = () => {
-    if (!matchData?.rounds) return null;
-    return (
-      matchData.rounds.find(
-        (r) => currentTick >= r.startTick && currentTick <= r.endTick
-      ) || matchData.rounds[selectedRound]
-    );
+  // Modified to use the current round's specific heatmap data
+  const drawHeatmap = (ctx, width, height) => {
+    if (!currentHeatmapData) return;
+
+    // Use gridSize from the overall heatmap data structure
+    const gridSize = allRoundHeatmapData?.gridSize || 50;
+    const bounds = allRoundHeatmapData?.bounds;
+
+    if (!bounds || !gridSize) return;
+
+    // Extract the per-round CT and T grids
+    const ct = currentHeatmapData.ct;
+    const t = currentHeatmapData.t;
+
+    const cellWidth = width / gridSize;
+    const cellHeight = height / gridSize;
+
+    const SHRINK_FACTOR = 0.95;
+    const drawWidth = cellWidth * SHRINK_FACTOR;
+    const drawHeight = cellHeight * SHRINK_FACTOR;
+    const drawOffset = (cellWidth * (1 - SHRINK_FACTOR)) / 2;
+
+    if (ct?.grid) {
+      for (let row = 0; row < ct.grid.length; row++) {
+        for (let col = 0; col < ct.grid[row].length; col++) {
+          // Density is normalized 0-1
+          const density = ct.grid[row][col];
+          if (density > 0) {
+            const alpha = Math.min(density * 1.0, 0.95);
+            ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
+
+            ctx.fillRect(
+              col * cellWidth + drawOffset,
+              row * cellHeight + drawOffset,
+              drawWidth,
+              drawHeight
+            );
+          }
+        }
+      }
+    }
+
+    if (t?.grid) {
+      for (let row = 0; row < t.grid.length; row++) {
+        for (let col = 0; col < t.grid[row].length; col++) {
+          const density = t.grid[row][col];
+          if (density > 0) {
+            const alpha = Math.min(density * 1.0, 0.95);
+            ctx.fillStyle = `rgba(185, 28, 28, ${alpha})`;
+
+            ctx.fillRect(
+              col * cellWidth + drawOffset,
+              row * cellHeight + drawOffset,
+              drawWidth,
+              drawHeight
+            );
+          }
+        }
+      }
+    }
   };
 
-  // Render the map with persistent players and smooth movement
+  useEffect(() => {
+    const round = matchData?.rounds?.[selectedRound];
+    if (round && setCurrentRoundContext) {
+      setCurrentRoundContext(round.roundNum);
+    }
+  }, [selectedRound, matchData, setCurrentRoundContext]);
+
   useEffect(() => {
     if (!matchData || !canvasRef.current) return;
 
@@ -94,10 +199,8 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
     const width = canvas.width;
     const height = canvas.height;
 
-    // Get current tick data
     const tickData = tickIndex.get(currentTick) || [];
 
-    // Update player states with new data from this tick
     tickData.forEach((player) => {
       const playerId = player.steamId || player.name;
       const existingPlayer = playerStatesRef.current.get(playerId);
@@ -128,22 +231,27 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
       }
     });
 
-    // Animation frame for smooth movement
+    let lastRoundNum = getCurrentRound()?.roundNum;
+
     const animate = () => {
-      // Clear canvas
       ctx.fillStyle = "#1a1a1a";
       ctx.fillRect(0, 0, width, height);
 
-      // Draw radar image
       if (radarImage) {
+        if (showHeatmap) {
+          ctx.globalAlpha = 0.3;
+        }
         ctx.drawImage(radarImage, 0, 0, width, height);
+        ctx.globalAlpha = 1.0;
       }
 
-      // Draw all players with smooth interpolation
+      if (showHeatmap) {
+        drawHeatmap(ctx, width, height);
+      }
+
       playerStatesRef.current.forEach((playerState) => {
         if (!playerState.targetX || !playerState.targetY) return;
 
-        // Smoothly move current position towards target
         const lerpSpeed = 0.3;
         playerState.currentX +=
           (playerState.targetX - playerState.currentX) * lerpSpeed;
@@ -157,13 +265,11 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
           height
         );
 
-        // Clamp position to map bounds
         const clampedPos = {
           x: Math.max(0, Math.min(width, pos.x)),
           y: Math.max(0, Math.min(height, pos.y)),
         };
 
-        // If player is dead, show skull
         if (!playerState.isAlive) {
           ctx.font = "20px sans-serif";
           ctx.fillText("💀", clampedPos.x - 10, clampedPos.y + 8);
@@ -173,21 +279,19 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
           return;
         }
 
-        // Draw alive player circle
         ctx.beginPath();
         ctx.arc(clampedPos.x, clampedPos.y, 10, 0, Math.PI * 2);
-        ctx.fillStyle = playerState.side === "CT" ? "#3b82f6" : "#ef4444";
+        ctx.fillStyle =
+          playerState.side === "CT" ? TEAM_COLORS.CT_MAIN : TEAM_COLORS.T_MAIN;
         ctx.fill();
         ctx.strokeStyle = "#fff";
         ctx.lineWidth = 2;
         ctx.stroke();
 
-        // Draw player name
         ctx.fillStyle = "#fff";
         ctx.font = "bold 11px sans-serif";
         ctx.fillText(playerState.name, clampedPos.x + 14, clampedPos.y + 4);
 
-        // Draw health
         ctx.fillStyle = "#4ade80";
         ctx.font = "10px sans-serif";
         ctx.fillText(
@@ -196,6 +300,16 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
           clampedPos.y + 15
         );
       });
+
+      const currentRound = getCurrentRound();
+      if (
+        currentRound &&
+        currentRound.roundNum !== lastRoundNum &&
+        setCurrentRoundContext
+      ) {
+        setCurrentRoundContext(currentRound.roundNum);
+        lastRoundNum = currentRound.roundNum;
+      }
 
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -207,9 +321,17 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, [matchData, currentTick, radarImage, tickIndex]);
+  }, [
+    matchData,
+    currentTick,
+    radarImage,
+    tickIndex,
+    showHeatmap,
+    currentHeatmapData, // DEPENDENCY CHANGED: Triggers re-render when round changes
+    getCurrentRound,
+    setCurrentRoundContext,
+  ]);
 
-  // Playback animation - auto-restart when finished
   useEffect(() => {
     if (!isPlaying || !matchData) return;
 
@@ -229,9 +351,41 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
     }, 1000 / (64 * playbackSpeed));
 
     return () => clearInterval(interval);
-  }, [isPlaying, matchData, playbackSpeed]);
+  }, [isPlaying, matchData, playbackSpeed, getCurrentRound]);
+
+  const handleRoundChange = (idx) => {
+    setSelectedRound(idx);
+    setCurrentTick(matchData.rounds[idx]?.startTick || 0);
+    playerStatesRef.current.clear();
+    if (setCurrentRoundContext && matchData.rounds[idx]) {
+      setCurrentRoundContext(matchData.rounds[idx].roundNum);
+    }
+  };
+
+  const handleSpeedChange = (e) => {
+    setPlaybackSpeed(Number(e.target.value));
+  };
+
+  const handleTickChange = (e) => {
+    setCurrentTick(Number(e.target.value));
+  };
 
   const round = getCurrentRound();
+
+  const teamA_Name = staticTeamMapping?.CT || "CT Team";
+  const teamB_Name = staticTeamMapping?.T || "T Team";
+
+  const scoreTeamA = round?.ctScore || 0;
+  const scoreTeamB = round?.tScore || 0;
+
+  const teamA_Color =
+    teamMapping.CT === teamA_Name ? "text-blue-500" : "text-red-500";
+  const teamB_Color =
+    teamMapping.CT === teamB_Name ? "text-blue-500" : "text-red-500";
+
+  // Get samples from current heatmap data for display
+  const ctSamples = currentHeatmapData?.ct?.samples || 0;
+  const tSamples = currentHeatmapData?.t?.samples || 0;
 
   if (!matchData) {
     return (
@@ -250,9 +404,9 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
   }
 
   return (
-    <div className="w-full bg-gray-900 text-white rounded-lg overflow-hidden">
+    <div className="w-full bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden">
       <div className="flex flex-col">
-        <div className="p-4 border-b border-gray-700">
+        <div className="p-4 border-b border-gray-700 bg-gray-800">
           <h2 className="text-xl font-bold">CS2 Match Replay</h2>
           <p className="text-sm text-gray-400">
             {matchData.header?.mapName} - Tick Rate:{" "}
@@ -260,96 +414,151 @@ const CS2MapRenderer = ({ matchData: externalMatchData }) => {
           </p>
         </div>
 
-        <div className="bg-gray-800">
+        <div className="bg-gray-800 flex justify-center">
           <canvas
             ref={canvasRef}
             width={1024}
             height={1024}
-            className="w-full"
+            className="w-full max-w-4xl"
             style={{ maxHeight: "600px", objectFit: "contain" }}
           />
         </div>
 
-        <div className="bg-gray-800 p-4 space-y-3">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => {
-                setCurrentTick(round?.startTick || 0);
-                playerStatesRef.current.clear();
-              }}
-              className="p-2 bg-gray-700 rounded hover:bg-gray-600"
-            >
-              <SkipBack size={18} />
-            </button>
+        <div className="bg-gray-800 p-4 space-y-4 border-t border-gray-700">
+          {/* 1. Enhanced Round Selector (Pill Selector) */}
+          <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-gray-700/50 rounded-lg shadow-inner">
+            <label className="text-sm font-semibold text-gray-300 mr-2 flex-shrink-0">
+              Select Round:
+            </label>
+            <div className="flex flex-1 overflow-x-auto overflow-y-hidden p-1 space-x-2">
+              {matchData.rounds?.map((r, idx) => {
+                const isSelected = idx === selectedRound;
+                const winnerColor =
+                  r.winnerSide === "CT" ? "bg-blue-800" : "bg-red-800";
 
-            <button
-              onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2 bg-blue-600 rounded hover:bg-blue-700"
-            >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} />}
-            </button>
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleRoundChange(idx)}
+                    className={`
+                      px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 flex-shrink-0
+                      ${
+                        isSelected
+                          ? `${winnerColor} text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white/50`
+                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
+                      }
+                    `}
+                  >
+                    R {r.roundNum} ({r.winnerSide})
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-            <button
-              onClick={() => setCurrentTick(round?.endTick || 0)}
-              className="p-2 bg-gray-700 rounded hover:bg-gray-600"
-            >
-              <SkipForward size={18} />
-            </button>
+          {/* Playback Controls and Slider */}
+          <div className="flex items-center gap-4 bg-gray-700 p-3 rounded-lg shadow-md flex-wrap">
+            {/* Control Buttons */}
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => {
+                  setCurrentTick(round?.startTick || 0);
+                  playerStatesRef.current.clear();
+                }}
+                className="p-2 bg-gray-600 rounded-lg hover:bg-gray-500 shadow-sm transition-colors"
+              >
+                <SkipBack size={18} />
+              </button>
 
-            <div className="flex-1">
+              <button
+                onClick={() => setIsPlaying(!isPlaying)}
+                // Use darker blue for play button
+                className="p-3 bg-blue-700 rounded-lg hover:bg-blue-800 shadow-lg transition-colors"
+              >
+                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
+              </button>
+
+              <button
+                onClick={() => {
+                  setCurrentTick(round?.endTick || 0);
+                }}
+                className="p-2 bg-gray-600 rounded-lg hover:bg-gray-500 shadow-sm transition-colors"
+                disabled={!round}
+              >
+                <SkipForward size={18} />
+              </button>
+            </div>
+
+            {/* Tick Slider */}
+            <div className="flex-1 min-w-[200px] space-y-1">
               <input
                 type="range"
                 min={round?.startTick || 0}
                 max={round?.endTick || 1000}
                 value={currentTick}
-                onChange={(e) => setCurrentTick(Number(e.target.value))}
-                className="w-full"
+                onChange={handleTickChange}
+                className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg"
+                style={{
+                  "--tw-ring-color": TEAM_COLORS.CT_MAIN,
+                }}
               />
-              <div className="text-xs text-gray-400 mt-1">
-                Tick: {currentTick} / {round?.endTick || 0}
+              <div className="flex justify-between text-xs text-gray-400">
+                <span>Tick: {currentTick}</span>
+                <span>End: {round?.endTick || 0}</span>
               </div>
             </div>
 
-            <select
-              value={playbackSpeed}
-              onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-              className="px-3 py-2 bg-gray-700 rounded text-sm"
-            >
-              <option value="1">1x</option>
-              <option value="2">2x</option>
-              <option value="5">5x</option>
-              <option value="10">10x</option>
-            </select>
-          </div>
-
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <label className="text-sm">Round:</label>
+            {/* Speed Selector */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <FastForward size={16} className="text-gray-400" />
               <select
-                value={selectedRound}
-                onChange={(e) => {
-                  const idx = Number(e.target.value);
-                  setSelectedRound(idx);
-                  setCurrentTick(matchData.rounds[idx]?.startTick || 0);
-                  playerStatesRef.current.clear();
-                }}
-                className="px-3 py-1 bg-gray-700 rounded text-sm"
+                value={playbackSpeed}
+                onChange={handleSpeedChange}
+                className="px-3 py-2 bg-gray-600 rounded-lg text-sm font-medium border border-gray-500 hover:border-gray-400 transition-colors"
               >
-                {matchData.rounds?.map((r, idx) => (
-                  <option key={idx} value={idx}>
-                    Round {r.roundNum} ({r.winner})
-                  </option>
-                ))}
+                <option value="1">1x</option>
+                <option value="2">2x</option>
+                <option value="5">5x</option>
+                <option value="10">10x</option>
               </select>
             </div>
+          </div>
 
+          {/* Match Score and Heatmap Info (Bottom Row) */}
+          <div className="flex items-center justify-between gap-4 pt-2 border-t border-gray-700">
             {round && (
-              <div className="ml-auto text-sm">
-                <span className="text-blue-400">CT: {round.ctScore}</span>
+              <div className="text-lg font-bold">
+                {/* Score display using muted colors */}
+                <span className={teamA_Color}>
+                  {teamA_Name}: {scoreTeamA}
+                </span>
                 {" - "}
-                <span className="text-red-400">T: {round.tScore}</span>
+                <span className={teamB_Color}>
+                  {teamB_Name}: {scoreTeamB}
+                </span>
               </div>
             )}
+
+            {/* Heatmap Toggle and Info */}
+            <div className="flex items-center gap-4 text-sm">
+              <button
+                onClick={() => setShowHeatmap(!showHeatmap)}
+                className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+                  showHeatmap
+                    ? "bg-green-700 hover:bg-green-800"
+                    : "bg-gray-700 hover:bg-gray-600"
+                }`}
+                disabled={!allRoundHeatmapData}
+              >
+                {showHeatmap ? "Hide Heatmap" : "Show Heatmap"}
+              </button>
+
+              {allRoundHeatmapData && showHeatmap && (
+                <div className="text-xs text-gray-400">
+                  Heatmap: CT ({ctSamples}) | T ({tSamples}) samples
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

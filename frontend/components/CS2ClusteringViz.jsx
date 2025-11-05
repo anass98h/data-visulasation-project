@@ -9,12 +9,16 @@ import * as distributionHelpers from "@/lib/distribution";
 
 const CS2Dashboard = () => {
   const [matchData, setMatchData] = useState(null);
+  const [heatmapData, setHeatmapData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [dropdownValue, setDropdownValue] = useState("ct");
+  const [dropdownValue, setDropdownValue] = useState("both"); // Default set to "both"
   const [economyData, setEconomyData] = useState({});
-  const [lineChartData, setLineChartData] = useState({});
+  const [lineChartData, setLineChartData] = useState([]);
 
-  // Load match data from public folder
+  // State to track the currently selected round for map and context rendering
+  const [currentRoundContext, setCurrentRoundContext] = useState(1);
+
+  // Load match data and heatmap from public folder
   useEffect(() => {
     const loadMatchData = async () => {
       setIsLoading(true);
@@ -28,6 +32,8 @@ const CS2Dashboard = () => {
         }
         const data = await response.json();
         setMatchData(data);
+        // Set initial context to Round 1
+        setCurrentRoundContext(data.rounds?.[0]?.roundNum || 1);
         setIsLoading(false);
       } catch (error) {
         console.log("Error loading match data - user can upload their own");
@@ -36,7 +42,25 @@ const CS2Dashboard = () => {
       }
     };
 
+    const loadHeatmapData = async () => {
+      try {
+        const response = await fetch("/heatmap_data.json");
+        if (!response.ok) {
+          console.log(
+            "No heatmap_data.json found - heatmap won't be available"
+          );
+          return;
+        }
+        const data = await response.json();
+        setHeatmapData(data);
+        console.log("Heatmap data loaded successfully");
+      } catch (error) {
+        console.log("Error loading heatmap data - continuing without heatmap");
+      }
+    };
+
     loadMatchData();
+    loadHeatmapData();
   }, []);
 
   // Calculate economy data when match data changes
@@ -54,21 +78,62 @@ const CS2Dashboard = () => {
     }
   }, [matchData]);
 
-  // Update line chart data when dropdown or economy data changes
+  // Corrected data extraction to handle object-based rounds
   useEffect(() => {
-    if (!economyData.ct_economy || !economyData.t_economy) return;
-
-    try {
-      const result = distributionHelpers.extractXY(
-        economyData,
-        "economy",
-        undefined,
-        dropdownValue
-      );
-      setLineChartData(result);
-    } catch (error) {
-      console.error("Error extracting XY data:", error);
+    if (!economyData.ct_economy || !economyData.t_economy) {
+      setLineChartData([]);
+      return;
     }
+
+    const newSeriesData = [];
+
+    // Helper function to extract and format data for a team
+    const extractTeamSeries = (team, label, color) => {
+      const teamEconomyData = economyData[`${team}_economy`];
+
+      if (
+        teamEconomyData?.rounds &&
+        typeof teamEconomyData.rounds === "object" &&
+        teamEconomyData.rounds !== null
+      ) {
+        const roundKeys = Object.keys(teamEconomyData.rounds).filter(
+          (key) => !isNaN(Number(key))
+        );
+
+        roundKeys.sort((a, b) => Number(a) - Number(b));
+
+        const roundNumbers = roundKeys.map(Number);
+
+        const economySeries = roundKeys.map(
+          (key) => teamEconomyData.rounds[key].economy
+        );
+
+        if (economySeries.length > 0) {
+          return {
+            x: roundNumbers,
+            y: economySeries,
+            label: label,
+            color: color,
+          };
+        }
+      }
+      return null;
+    };
+
+    if (dropdownValue === "ct") {
+      const ctSeries = extractTeamSeries("ct", "CT Economy", "#2563eb");
+      if (ctSeries) newSeriesData.push(ctSeries);
+    } else if (dropdownValue === "t") {
+      const tSeries = extractTeamSeries("t", "T Economy", "#dc2626");
+      if (tSeries) newSeriesData.push(tSeries);
+    } else if (dropdownValue === "both") {
+      const ctSeries = extractTeamSeries("ct", "CT Economy", "#3b82f6");
+      const tSeries = extractTeamSeries("t", "T Economy", "#ef4444");
+      if (ctSeries) newSeriesData.push(ctSeries);
+      if (tSeries) newSeriesData.push(tSeries);
+    }
+
+    setLineChartData(newSeriesData);
   }, [dropdownValue, economyData]);
 
   // Handle file upload
@@ -80,6 +145,7 @@ const CS2Dashboard = () => {
         const text = await file.text();
         const data = JSON.parse(text);
         setMatchData(data);
+        setCurrentRoundContext(data.rounds?.[0]?.roundNum || 1);
         setIsLoading(false);
       } catch (error) {
         console.error("Error parsing JSON file:", error);
@@ -87,6 +153,51 @@ const CS2Dashboard = () => {
       }
     }
   };
+
+  // 1. Memo to derive STATIC initial CT/T Team Names
+  const initialTeamMapping = useMemo(() => {
+    const teams = { CT: null, T: null };
+    if (!matchData?.ticks) return teams;
+
+    for (const tick of matchData.ticks) {
+      if (tick.side === "CT" && !teams.CT) {
+        teams.CT = tick.team;
+      }
+      if (tick.side === "T" && !teams.T) {
+        teams.T = tick.team;
+      }
+      if (teams.CT && teams.T) break;
+    }
+
+    return teams;
+  }, [matchData]);
+
+  // 2. Dynamic function to determine current team assignments based on round number
+  const getCurrentTeamsForRound = (roundNum) => {
+    const initialMap = initialTeamMapping;
+
+    // Check if the match is in the second half (Rounds 16+)
+    const isSecondHalf = roundNum > 15;
+
+    if (isSecondHalf) {
+      // Swap sides: Initial CT is now T, Initial T is now CT
+      return {
+        CT: initialMap.T,
+        T: initialMap.CT,
+        isSwapped: true,
+      };
+    } else {
+      // No swap: Retain initial sides
+      return {
+        CT: initialMap.CT,
+        T: initialMap.T,
+        isSwapped: false,
+      };
+    }
+  };
+
+  // Get the current team assignments for the currently viewed round on the map
+  const dynamicTeamMapping = getCurrentTeamsForRound(currentRoundContext);
 
   // Calculate stats from real data
   const stats = matchData
@@ -116,6 +227,23 @@ const CS2Dashboard = () => {
         }
       : undefined;
 
+  // Determine final score and winner based on the last round
+  const finalRound = matchData?.rounds?.[matchData.rounds.length - 1];
+  const finalScoreCT = finalRound?.ctScore || 0;
+  const finalScoreT = finalRound?.tScore || 0;
+
+  // Determine the overall winning team name based on final score
+  const overallWinnerName = useMemo(() => {
+    if (!initialTeamMapping.CT || !initialTeamMapping.T) return "N/A";
+
+    if (finalScoreCT > finalScoreT) {
+      return initialTeamMapping.CT;
+    } else if (finalScoreT > finalScoreCT) {
+      return initialTeamMapping.T;
+    }
+    return "Draw";
+  }, [finalScoreCT, finalScoreT, initialTeamMapping]);
+
   if (isLoading) {
     return (
       <div className="w-full min-h-screen bg-gray-900 text-white flex items-center justify-center p-4">
@@ -130,11 +258,11 @@ const CS2Dashboard = () => {
   if (!matchData) {
     return (
       <div className="w-full min-h-screen bg-gray-900 text-white p-4">
-        <div className="max-w-7xl mx-auto space-y-4">
+        <div className="space-y-4">
           <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
             <div className="flex justify-between items-center">
               <div className="flex-1">
-                <h1 className="text-3xl font-bold mb-2">CS2 Match Analysis</h1>
+                <h1 className="text-3xl font-bold">CS2 Match Analysis</h1>
                 <p className="text-gray-400">
                   Upload a match file to view analysis
                 </p>
@@ -152,23 +280,65 @@ const CS2Dashboard = () => {
             </div>
           </div>
 
-          <CS2MapRenderer matchData={null} />
+          <CS2MapRenderer
+            matchData={null}
+            heatmapData={null}
+            teamMapping={null}
+            staticTeamMapping={null}
+          />
         </div>
       </div>
     );
   }
 
+  // Determine chart title based on selection
+  let chartTitle = "Economy Over Rounds";
+  let chartDescription = "Track economy performance across game rounds";
+
+  if (dropdownValue === "ct") {
+    chartTitle = "CT Economy Over Rounds";
+    chartDescription =
+      "Track Counter-Terrorist economy performance across game rounds";
+  } else if (dropdownValue === "t") {
+    chartTitle = "T Economy Over Rounds";
+    chartDescription = "Track Terrorist economy performance across game rounds";
+  } else if (dropdownValue === "both") {
+    chartTitle = "CT vs T Economy Over Rounds";
+    chartDescription =
+      "Compare Counter-Terrorist and Terrorist economy performance across game rounds";
+  }
+
+  // Display string for the teams uses the INITIAL static map for context
+  const teamDisplay =
+    initialTeamMapping.CT && initialTeamMapping.T
+      ? `${initialTeamMapping.CT} (Start CT) vs ${initialTeamMapping.T} (Start T)`
+      : `${stats.mapName} Match`;
+
+  // Determine which team name corresponds to the CT score and T score for Round Summary display
+  const teamA_Name = initialTeamMapping.CT || "CT Team";
+  const teamB_Name = initialTeamMapping.T || "T Team";
+
+  // Find the total rounds played (used for score progression calculation)
+  const totalRoundsPlayed = matchData.rounds?.length || 0;
+
   return (
     <div className="w-full min-h-screen bg-gray-900 text-white p-4">
-      <div className="max-w-7xl mx-auto space-y-4">
+      <div className="space-y-4">
         {/* Header */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
           <div className="flex justify-between items-start mb-4">
             <div>
               <h1 className="text-3xl font-bold">CS2 Match Analysis</h1>
+
               <p className="text-gray-400 mt-1">
-                {stats.totalRounds} rounds on {stats.mapName}
+                {stats.totalRounds} rounds on {teamDisplay}
               </p>
+              {heatmapData && (
+                <p className="text-xs text-green-400 mt-1">
+                  ✓ Heatmap loaded: CT ({heatmapData.heatmapData?.ct?.samples})
+                  | T ({heatmapData.heatmapData?.t?.samples}) samples
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
@@ -210,8 +380,14 @@ const CS2Dashboard = () => {
           </div>
         </div>
 
-        {/* Map Renderer */}
-        <CS2MapRenderer matchData={matchData} />
+        {/* Map Renderer with Heatmap */}
+        <CS2MapRenderer
+          matchData={matchData}
+          heatmapData={heatmapData}
+          teamMapping={dynamicTeamMapping}
+          staticTeamMapping={initialTeamMapping} // PASS STATIC MAP
+          setCurrentRoundContext={setCurrentRoundContext}
+        />
 
         {/* Economy Distribution Section */}
         {totalEconomy && (
@@ -226,7 +402,8 @@ const CS2Dashboard = () => {
                   Analyze team economy performance across game rounds
                 </p>
               </div>
-              <div className="flex items-center gap-2">
+              {/* Added flex-wrap for smaller screens */}
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-gray-400">
                   Select Team:
                 </span>
@@ -234,6 +411,17 @@ const CS2Dashboard = () => {
                   value={dropdownValue}
                   onValueChange={setDropdownValue}
                 />
+                {/* Team Side Legend (USES DYNAMIC MAPPING) */}
+                <div className="flex items-center gap-4 ml-4 text-sm font-medium">
+                  <span className="flex items-center gap-1 text-blue-400">
+                    <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                    {dynamicTeamMapping.CT || "CT"}
+                  </span>
+                  <span className="flex items-center gap-1 text-red-400">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    {dynamicTeamMapping.T || "T"}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -242,134 +430,173 @@ const CS2Dashboard = () => {
               <Economy totalEconomy={totalEconomy} />
             </div>
 
-            {/* Line Chart */}
+            {/* Line Chart: Passed seriesData instead of data */}
             <LineChart
-              data={lineChartData}
-              title={`${dropdownValue.toUpperCase()} Economy Over Rounds`}
-              description={`Track ${
-                dropdownValue === "ct" ? "Counter-Terrorist" : "Terrorist"
-              } economy performance across game rounds`}
+              seriesData={lineChartData}
+              title={chartTitle}
+              description={chartDescription}
             />
           </div>
         )}
 
-        {/* Round Summary */}
-        <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-          <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-            <Clock className="w-6 h-6" />
-            Round Summary
-          </h3>
-          <div className="space-y-2">
-            {matchData.rounds?.map((round, idx) => {
-              const roundDuration = round.endTick - round.startTick;
-              const progressPercentage =
-                (roundDuration / maxRoundDuration) * 100;
-
-              return (
-                <div
-                  key={idx}
-                  className="flex items-center gap-3 p-3 bg-gray-700 hover:bg-gray-600 rounded-lg cursor-pointer transition-colors border border-gray-600"
-                >
-                  <div className="w-16 text-sm font-semibold text-gray-300">
-                    Round {round.roundNum}
-                  </div>
-                  <div className="flex-1">
-                    <div className="h-2 bg-gray-600 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full ${
-                          round.winner === "T" ? "bg-red-500" : "bg-blue-500"
-                        }`}
-                        style={{
-                          width: `${progressPercentage}%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div className="w-32 text-sm text-gray-400">
-                    {roundDuration.toLocaleString()} ticks
-                  </div>
-                  <div
-                    className={`w-12 text-sm font-semibold text-center ${
-                      round.winner === "T" ? "text-red-400" : "text-blue-400"
-                    }`}
-                  >
-                    {round.winner}
-                  </div>
-                  <div className="text-sm text-gray-400">
-                    <span className="text-blue-400">{round.ctScore}</span>
-                    {" - "}
-                    <span className="text-red-400">{round.tScore}</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Additional Info */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Match Info */}
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700 flex flex-col h-full">
             <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-              <Target className="w-6 h-6" />
-              Match Information
+              <Clock className="w-6 h-6" />
+              Round Timeline & Score Progress
             </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Map</span>
-                <span className="font-semibold">{stats.mapName}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Server Name</span>
-                <span className="font-semibold">
-                  {matchData.header?.serverName || "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Network Protocol</span>
-                <span className="font-semibold">
-                  {matchData.header?.networkProtocol || "N/A"}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-400">Client Name</span>
-                <span className="font-semibold">
-                  {matchData.header?.clientName || "N/A"}
-                </span>
+
+            <div className="flex-1 overflow-x-auto overflow-y-hidden h-[400px] border border-gray-700 p-2 rounded-lg">
+              <div className="flex space-x-2 h-full">
+                {matchData.rounds?.map((round, idx) => {
+                  // Determine winner
+                  const isCTWin = round.winnerSide === "CT";
+                  const colorClass = isCTWin
+                    ? "bg-blue-800 hover:bg-blue-900"
+                    : "bg-red-800 hover:bg-red-900";
+                  const sideText = isCTWin ? "CT" : "T";
+                  const winnerName =
+                    getCurrentTeamsForRound(round.roundNum)[round.winnerSide] ||
+                    sideText;
+
+                  // Using a fixed height for visual consistency here
+                  const heightStyle = { height: "100%", minWidth: "80px" };
+
+                  return (
+                    <div
+                      key={idx}
+                      style={heightStyle}
+                      className={`flex-shrink-0 flex flex-col justify-between items-center p-2 rounded-md transition-colors shadow-md cursor-pointer ${colorClass}`}
+                      onClick={() => setCurrentRoundContext(round.roundNum)}
+                    >
+                      <span className="text-xs font-semibold **text-white**">
+                        R {round.roundNum}
+                      </span>
+
+                      <div className="text-center">
+                        <div className="text-xl font-bold **text-white**">
+                          {round.ctScore} - {round.tScore}
+                        </div>
+
+                        <span className="text-xs **text-white**">
+                          {winnerName} Win ({sideText})
+                        </span>
+                      </div>
+
+                      <span className="text-xs **text-white** opacity-90">
+                        {round.reason || "Killed"}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
 
-          {/* Statistics */}
-          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
-            <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
-              <TrendingUp className="w-6 h-6" />
-              Match Statistics
-            </h3>
-            <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Total Damage Events</span>
-                <span className="font-semibold">
-                  {matchData.damages?.length || 0}
-                </span>
+          {/* Additional Info (Column 2: Two Stacked Cards) */}
+          <div className="space-y-4 h-full">
+            {" "}
+            {/* Match Info */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                <Target className="w-6 h-6" />
+                Match Information
+              </h3>
+              <div className="space-y-3">
+                {/* FINAL SCORE (Static) */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Final Score</span>
+                  <span className="font-semibold text-lg">
+                    {finalScoreCT} - {finalScoreT}
+                  </span>
+                </div>
+
+                {/* MATCH WINNER (Static) */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Match Winner</span>
+                  <span
+                    className={`font-bold text-lg ${
+                      finalScoreCT > finalScoreT
+                        ? "text-blue-400"
+                        : finalScoreT > finalScoreCT
+                        ? "text-red-400"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {overallWinnerName}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Map</span>
+                  <span className="font-semibold">{stats.mapName}</span>
+                </div>
+
+                {/* 💥 FIX: Removed round-specific dynamic values. Now showing STATIC team names */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Start CT Team</span>
+                  <span className="font-semibold text-blue-400">
+                    {initialTeamMapping.CT || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Start T Team</span>
+                  <span className="font-semibold text-red-400">
+                    {initialTeamMapping.T || "N/A"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Server Name</span>
+                  <span className="font-semibold">
+                    {matchData.header?.serverName || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Network Protocol</span>
+                  <span className="font-semibold">
+                    {matchData.header?.networkProtocol || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400">Client Name</span>
+                  <span className="font-semibold">
+                    {matchData.header?.clientName || "N/A"}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Weapon Fires</span>
-                <span className="font-semibold">
-                  {matchData.weaponFires?.length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-gray-700">
-                <span className="text-gray-400">Flash Events</span>
-                <span className="font-semibold">
-                  {matchData.flashes?.length || 0}
-                </span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-gray-400">Grenade Throws</span>
-                <span className="font-semibold">
-                  {matchData.grenades?.length || 0}
-                </span>
+            </div>
+            {/* Statistics */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                <TrendingUp className="w-6 h-6" />
+                Match Statistics
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Total Damage Events</span>
+                  <span className="font-semibold">
+                    {matchData.damages?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Weapon Fires</span>
+                  <span className="font-semibold">
+                    {matchData.weaponFires?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Flash Events</span>
+                  <span className="font-semibold">
+                    {matchData.flashes?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400">Grenade Throws</span>
+                  <span className="font-semibold">
+                    {matchData.grenades?.length || 0}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

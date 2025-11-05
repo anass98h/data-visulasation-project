@@ -40,6 +40,12 @@ export function EconomyDropdown({
           >
             Terrorist (T)
           </SelectItem>
+          <SelectItem
+            value="both"
+            className="text-white hover:bg-gray-600 focus:bg-gray-600 data-[state=checked]:bg-blue-600 data-[state=checked]:text-white"
+          >
+            Both Teams
+          </SelectItem>
         </SelectGroup>
       </SelectContent>
     </Select>

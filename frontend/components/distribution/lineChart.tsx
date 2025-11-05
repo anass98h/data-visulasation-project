@@ -3,11 +3,15 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
 
+interface DataSeries {
+  x: number[];
+  y: number[];
+  label: string; // e.g., "CT", "T"
+  color: string; // e.g., "#3b82f6", "#ef4444"
+}
+
 interface LineChartProps {
-  data?: {
-    x: number[];
-    y: number[];
-  };
+  seriesData?: DataSeries[];
   title?: string;
   description?: string;
   xLabel?: string;
@@ -15,7 +19,7 @@ interface LineChartProps {
 }
 
 const LineChart: React.FC<LineChartProps> = ({
-  data,
+  seriesData,
   title = "Economy Over Rounds",
   description = "Track economy performance across game rounds",
   xLabel = "Rounds",
@@ -26,15 +30,17 @@ const LineChart: React.FC<LineChartProps> = ({
 
   useEffect(() => {
     if (
-      !data ||
-      !data.x ||
-      !data.y ||
-      data.x.length === 0 ||
+      !seriesData ||
+      seriesData.length === 0 ||
       !svgRef.current ||
       !containerRef.current
     ) {
       return;
     }
+
+    // Combine all x and y data for calculating global domain
+    const allX = seriesData.flatMap((s) => s.x);
+    const allY = seriesData.flatMap((s) => s.y);
 
     // Clear previous chart
     d3.select(svgRef.current).selectAll("*").remove();
@@ -59,79 +65,36 @@ const LineChart: React.FC<LineChartProps> = ({
     // Create scales
     const xScale = d3
       .scaleLinear()
-      .domain([d3.min(data.x) || 1, d3.max(data.x) || 21])
+      .domain(d3.extent(allX) as [number, number]) // Use extent across all X data
       .range([0, width]);
 
     const yScale = d3
       .scaleLinear()
-      .domain([0, (d3.max(data.y) || 0) * 1.1]) // Add 10% padding to top
+      .domain([0, (d3.max(allY) || 0) * 1.1]) // Max across all Y data
       .range([height, 0]);
 
-    // Create line generator
-    const line = d3
-      .line<number>()
-      .x((d, i) => xScale(data.x[i]))
-      .y((d) => yScale(d))
-      .curve(d3.curveMonotoneX); // Smooth curve
-
-    // Create gradient for area
-    const gradient = svg
-      .append("defs")
-      .append("linearGradient")
-      .attr("id", "area-gradient")
-      .attr("x1", "0%")
-      .attr("y1", "0%")
-      .attr("x2", "0%")
-      .attr("y2", "100%");
-
-    gradient
-      .append("stop")
-      .attr("offset", "0%")
-      .attr("stop-color", "#3b82f6") // Blue color
-      .attr("stop-opacity", 0.3);
-
-    gradient
-      .append("stop")
-      .attr("offset", "100%")
-      .attr("stop-color", "#3b82f6")
-      .attr("stop-opacity", 0);
-
-    // Create area generator
-    const area = d3
-      .area<number>()
-      .x((d, i) => xScale(data.x[i]))
-      .y0(height)
-      .y1((d) => yScale(d))
-      .curve(d3.curveMonotoneX);
-
-    // Add area
-    svg
-      .append("path")
-      .datum(data.y)
-      .attr("fill", "url(#area-gradient)")
-      .attr("d", area);
-
     // Add X axis
-    // Create tick values dynamically based on number of rounds
-    const numRounds = data.x.length;
+    // Create tick values dynamically based on number of rounds (using the first series' X data)
+    const firstSeriesX = seriesData[0].x;
+    const numRounds = firstSeriesX.length;
     let tickValues: number[] = [];
 
     if (numRounds <= 10) {
       // Show all rounds if 10 or fewer
-      tickValues = data.x;
+      tickValues = firstSeriesX;
     } else if (numRounds <= 20) {
       // Show every 2nd round, plus first and last
-      tickValues = data.x.filter(
+      tickValues = firstSeriesX.filter(
         (val, i) => i === 0 || i === numRounds - 1 || val % 2 === 1
       );
     } else if (numRounds <= 30) {
       // Show every 3rd round, plus first and last
-      tickValues = data.x.filter(
+      tickValues = firstSeriesX.filter(
         (val, i) => i === 0 || i === numRounds - 1 || val % 3 === 0
       );
     } else {
       // Show every 5th round, plus first and last
-      tickValues = data.x.filter(
+      tickValues = firstSeriesX.filter(
         (val, i) => i === 0 || i === numRounds - 1 || val % 5 === 0
       );
     }
@@ -189,74 +152,110 @@ const LineChart: React.FC<LineChartProps> = ({
       .selectAll("line")
       .attr("stroke", "#ffffff");
 
-    // Add the line path
-    svg
-      .append("path")
-      .datum(data.y)
-      .attr("fill", "none")
-      .attr("stroke", "#3b82f6") // blue-500
-      .attr("stroke-width", 2.5)
-      .attr("d", line);
+    // Loop through each series to draw line and data points
+    seriesData.forEach((series, seriesIndex) => {
+      // Create line generator for current series
+      const currentLine = d3
+        .line<number>()
+        .x((d, i) => xScale(series.x[i]))
+        .y((d) => yScale(d))
+        .curve(d3.curveMonotoneX);
 
-    // Add data points
-    const tooltip = d3
-      .select("body")
-      .selectAll(".chart-tooltip")
-      .data([null])
-      .join("div")
-      .attr("class", "chart-tooltip")
-      .style("position", "absolute")
-      .style("visibility", "hidden")
-      .style("background-color", "#374151") // gray-700
-      .style("color", "#ffffff")
-      .style("border", "1px solid #4b5563") // gray-600
-      .style("border-radius", "6px")
-      .style("padding", "8px 12px")
-      .style("font-size", "12px")
-      .style("pointer-events", "none")
-      .style("z-index", "1000")
-      .style("box-shadow", "0 4px 6px -1px rgb(0 0 0 / 0.1)");
+      // Add the line path
+      svg
+        .append("path")
+        .datum(series.y)
+        .attr("fill", "none")
+        .attr("stroke", series.color)
+        .attr("stroke-width", 2.5)
+        .attr("d", currentLine);
 
-    svg
-      .selectAll(".dot")
-      .data(data.y)
-      .join("circle")
-      .attr("class", "dot")
-      .attr("cx", (d, i) => xScale(data.x[i]))
-      .attr("cy", (d) => yScale(d))
-      .attr("r", 4)
-      .attr("fill", "#3b82f6") // blue-500
-      .attr("stroke", "#1f2937") // gray-800
-      .attr("stroke-width", 2)
-      .style("cursor", "pointer")
-      .on("mouseover", function (event, d) {
-        const i = data.y.indexOf(d);
-        d3.select(this).transition().duration(200).attr("r", 6);
+      // Add data points
+      const tooltip = d3
+        .select("body")
+        .selectAll(".chart-tooltip")
+        .data([null])
+        .join("div")
+        .attr("class", "chart-tooltip")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background-color", "#374151") // gray-700
+        .style("color", "#ffffff")
+        .style("border", "1px solid #4b5563") // gray-600
+        .style("border-radius", "6px")
+        .style("padding", "8px 12px")
+        .style("font-size", "12px")
+        .style("pointer-events", "none")
+        .style("z-index", "1000")
+        .style("box-shadow", "0 4px 6px -1px rgb(0 0 0 / 0.1)");
 
-        tooltip.style("visibility", "visible").html(`
-            <div style="font-weight: 600; margin-bottom: 4px;">${xLabel} ${data.x[i]}</div>
-            <div style="color: #9ca3af;">${yLabel}: ${d.toLocaleString()}</div>
-          `);
-      })
-      .on("mousemove", function (event) {
-        tooltip
-          .style("top", `${event.pageY - 10}px`)
-          .style("left", `${event.pageX + 10}px`);
-      })
-      .on("mouseout", function () {
-        d3.select(this).transition().duration(200).attr("r", 4);
+      svg
+        .selectAll(`.dot-${seriesIndex}`)
+        .data(series.y)
+        .join("circle")
+        .attr("class", `dot dot-${seriesIndex}`)
+        .attr("cx", (d, i) => xScale(series.x[i]))
+        .attr("cy", (d) => yScale(d))
+        .attr("r", 4)
+        .attr("fill", series.color)
+        .attr("stroke", "#1f2937") // gray-800
+        .attr("stroke-width", 2)
+        .style("cursor", "pointer")
+        .on("mouseover", function (event, d) {
+          const i = series.y.indexOf(d);
+          d3.select(this).transition().duration(200).attr("r", 6);
 
-        tooltip.style("visibility", "hidden");
-      });
+          tooltip.style("visibility", "visible").html(`
+                    <div style="font-weight: 600; margin-bottom: 4px;">${
+                      series.label
+                    } - ${xLabel} ${series.x[i]}</div>
+                    <div style="color: #9ca3af;">${yLabel}: ${d.toLocaleString()}</div>
+                `);
+        })
+        .on("mousemove", function (event) {
+          tooltip
+            .style("top", `${event.pageY - 10}px`)
+            .style("left", `${event.pageX + 10}px`);
+        })
+        .on("mouseout", function () {
+          d3.select(this).transition().duration(200).attr("r", 4);
+          tooltip.style("visibility", "hidden");
+        });
+    });
 
     // Add axis styling
     svg.selectAll(".domain, .tick line").attr("stroke", "#4b5563"); // gray-600
-  }, [data, xLabel, yLabel]);
 
-  if (!data || !data.x || !data.y || data.x.length === 0) {
+    // Add Legend (outside the loop, after all elements are drawn)
+    const legend = svg.append("g").attr("class", "legend");
+
+    seriesData.forEach((series, index) => {
+      const legendItem = legend
+        .append("g")
+        .attr("transform", `translate(${width - 150}, ${index * 20})`); // Positioned top right
+
+      // Legend color square
+      legendItem
+        .append("rect")
+        .attr("width", 10)
+        .attr("height", 10)
+        .attr("fill", series.color);
+
+      // Legend label
+      legendItem
+        .append("text")
+        .attr("x", 15)
+        .attr("y", 9)
+        .attr("fill", "#ffffff")
+        .attr("font-size", "12px")
+        .text(series.label);
+    });
+  }, [seriesData, xLabel, yLabel]);
+
+  if (!seriesData || seriesData.length === 0) {
     return (
       <div className="bg-gray-700 rounded-lg border border-gray-600 p-6">
-        <div className="mb-4">
+        <div className="mb-4 text-center">
           <h3 className="text-lg font-semibold text-white">{title}</h3>
           <p className="text-sm text-gray-400">{description}</p>
         </div>
@@ -269,7 +268,7 @@ const LineChart: React.FC<LineChartProps> = ({
 
   return (
     <div className="bg-gray-700 rounded-lg border border-gray-600 p-6">
-      <div className="mb-4">
+      <div className="mb-4 text-center">
         <h3 className="text-lg font-semibold text-white">{title}</h3>
         <p className="text-sm text-gray-400">{description}</p>
       </div>

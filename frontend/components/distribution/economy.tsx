@@ -6,7 +6,7 @@ const Economy = ({ totalEconomy }: { totalEconomy: any }) => {
   if (!totalEconomy) {
     return (
       <div className="grid gap-4 md:grid-cols-2">
-        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600 text-center">
           <div className="mb-2">
             <h3 className="text-lg font-semibold text-white">CT Economy</h3>
             <p className="text-sm text-gray-400">
@@ -15,7 +15,7 @@ const Economy = ({ totalEconomy }: { totalEconomy: any }) => {
           </div>
           <div className="text-2xl font-bold text-gray-500">Loading...</div>
         </div>
-        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+        <div className="bg-gray-700 p-6 rounded-lg border border-gray-600 text-center">
           <div className="mb-2">
             <h3 className="text-lg font-semibold text-white">T Economy</h3>
             <p className="text-sm text-gray-400">Terrorist total economy</p>
@@ -28,7 +28,7 @@ const Economy = ({ totalEconomy }: { totalEconomy: any }) => {
 
   return (
     <div className="grid gap-4 md:grid-cols-2">
-      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600 text-center">
         <div className="mb-2">
           <h3 className="text-lg font-semibold text-white">CT Economy</h3>
           <p className="text-sm text-gray-400">
@@ -39,7 +39,7 @@ const Economy = ({ totalEconomy }: { totalEconomy: any }) => {
           ${(totalEconomy.ct_economy ?? 0).toLocaleString()}
         </div>
       </div>
-      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600">
+      <div className="bg-gray-700 p-6 rounded-lg border border-gray-600 text-center">
         <div className="mb-2">
           <h3 className="text-lg font-semibold text-white">T Economy</h3>
           <p className="text-sm text-gray-400">Terrorist total economy</p>
