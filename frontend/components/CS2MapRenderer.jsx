@@ -34,6 +34,7 @@ const TEAM_COLORS = {
 const CS2MapRenderer = ({
   matchData: externalMatchData,
   heatmapData: externalHeatmapData, // This now contains all round heatmaps (round_heatmaps_*.json)
+  teamSideHeatmapData: externalTeamSideHeatmapData, // NEW: team+side aggregated heatmaps
   teamMapping,
   staticTeamMapping,
   setCurrentRoundContext,
@@ -41,6 +42,11 @@ const CS2MapRenderer = ({
   const [matchData, setMatchData] = useState(externalMatchData);
   const [allRoundHeatmapData, setAllRoundHeatmapData] =
     useState(externalHeatmapData);
+  const [teamSideHeatmaps, setTeamSideHeatmaps] = useState(
+    externalTeamSideHeatmapData
+  );
+  const [selectedTeamSide, setSelectedTeamSide] = useState(null);
+  const [heatmapMode, setHeatmapMode] = useState("per-round"); // "per-round" or "team-side"
   const [currentTick, setCurrentTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
@@ -54,11 +60,55 @@ const CS2MapRenderer = ({
   // Derive the currently displayed round number (1-indexed)
   const currentRoundNum = matchData?.rounds?.[selectedRound]?.roundNum || 1;
 
-  // Use memo to get the specific heatmap data for the current round
+  // Get team+side options for dropdown
+  const teamSideOptions = useMemo(() => {
+    if (!teamSideHeatmaps?.teamSideHeatmaps) return [];
+    return Object.keys(teamSideHeatmaps.teamSideHeatmaps).map((key) => ({
+      value: key,
+      label: key.replace(/_as_/g, " as ").replace(/_/g, " "),
+    }));
+  }, [teamSideHeatmaps]);
+
+  // Initialize selected team+side
+  useEffect(() => {
+    if (teamSideOptions.length > 0 && !selectedTeamSide) {
+      setSelectedTeamSide(teamSideOptions[0].value);
+    }
+  }, [teamSideOptions, selectedTeamSide]);
+
+  // Use memo to get the specific heatmap data for the current round OR team+side
   const currentHeatmapData = useMemo(() => {
+    if (
+      heatmapMode === "team-side" &&
+      teamSideHeatmaps?.teamSideHeatmaps &&
+      selectedTeamSide
+    ) {
+      // Return team+side aggregated heatmap
+      const teamSideData = teamSideHeatmaps.teamSideHeatmaps[selectedTeamSide];
+      if (teamSideData) {
+        // Determine if this is a T or CT side based on the key
+        const isT = selectedTeamSide.includes("_as_T");
+        return {
+          ct: isT
+            ? { grid: [], samples: 0 }
+            : { grid: teamSideData.grid, samples: teamSideData.samples },
+          t: isT
+            ? { grid: teamSideData.grid, samples: teamSideData.samples }
+            : { grid: [], samples: 0 },
+        };
+      }
+    }
+
+    // Default to per-round heatmap
     if (!allRoundHeatmapData?.roundHeatmaps) return null;
     return allRoundHeatmapData.roundHeatmaps[String(currentRoundNum)] || null;
-  }, [allRoundHeatmapData, currentRoundNum]);
+  }, [
+    heatmapMode,
+    teamSideHeatmaps,
+    selectedTeamSide,
+    allRoundHeatmapData,
+    currentRoundNum,
+  ]);
 
   const getCurrentRound = () => {
     if (!matchData?.rounds) return null;
@@ -97,6 +147,13 @@ const CS2MapRenderer = ({
       setAllRoundHeatmapData(externalHeatmapData);
     }
   }, [externalHeatmapData]);
+
+  useEffect(() => {
+    if (externalTeamSideHeatmapData) {
+      setTeamSideHeatmaps(externalTeamSideHeatmapData);
+      console.log("Team+side heatmap data loaded successfully");
+    }
+  }, [externalTeamSideHeatmapData]);
 
   const tickIndex = useMemo(() => {
     if (!matchData?.ticks) return new Map();
@@ -540,22 +597,74 @@ const CS2MapRenderer = ({
             )}
 
             {/* Heatmap Toggle and Info */}
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-4 text-sm flex-wrap">
+              {/* Heatmap Mode Selector - ALWAYS SHOW if any heatmap data exists */}
+              {(allRoundHeatmapData || teamSideHeatmaps) && (
+                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
+                  <label className="text-sm font-medium text-gray-300">
+                    Heatmap Mode:
+                  </label>
+                  <select
+                    value={heatmapMode}
+                    onChange={(e) => setHeatmapMode(e.target.value)}
+                    className="px-3 py-1.5 bg-gray-600 rounded text-sm font-medium border border-gray-500 hover:border-gray-400"
+                    disabled={!allRoundHeatmapData || !teamSideHeatmaps}
+                  >
+                    <option value="per-round" disabled={!allRoundHeatmapData}>
+                      Per Round
+                    </option>
+                    <option value="team-side" disabled={!teamSideHeatmaps}>
+                      Team+Side (Aggregated)
+                    </option>
+                  </select>
+                </div>
+              )}
+
+              {/* Team+Side Selector (only shown in team-side mode) */}
+              {heatmapMode === "team-side" && teamSideOptions.length > 0 && (
+                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
+                  <label className="text-sm font-medium text-gray-300">
+                    Select Team:
+                  </label>
+                  <select
+                    value={selectedTeamSide || ""}
+                    onChange={(e) => setSelectedTeamSide(e.target.value)}
+                    className="px-3 py-1.5 bg-gray-600 rounded text-sm font-medium border border-gray-500 hover:border-gray-400"
+                  >
+                    {teamSideOptions.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
               <button
                 onClick={() => setShowHeatmap(!showHeatmap)}
-                className={`px-3 py-2 rounded-lg font-medium transition-colors ${
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
                   showHeatmap
                     ? "bg-green-700 hover:bg-green-800"
                     : "bg-gray-700 hover:bg-gray-600"
                 }`}
-                disabled={!allRoundHeatmapData}
+                disabled={!allRoundHeatmapData && !teamSideHeatmaps}
               >
                 {showHeatmap ? "Hide Heatmap" : "Show Heatmap"}
               </button>
 
-              {allRoundHeatmapData && showHeatmap && (
-                <div className="text-xs text-gray-400">
-                  Heatmap: CT ({ctSamples}) | T ({tSamples}) samples
+              {currentHeatmapData && showHeatmap && (
+                <div className="text-sm text-gray-300 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
+                  {heatmapMode === "team-side" ? (
+                    <span>
+                      {selectedTeamSide?.replace(/_/g, " ")}:{" "}
+                      <strong>{ctSamples + tSamples} samples</strong>
+                    </span>
+                  ) : (
+                    <span>
+                      Round {currentRoundNum}: CT (<strong>{ctSamples}</strong>)
+                      | T (<strong>{tSamples}</strong>)
+                    </span>
+                  )}
                 </div>
               )}
             </div>
