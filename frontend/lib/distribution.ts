@@ -216,3 +216,65 @@ export function extractXYForBothTeams(dataset: any, yFeatureName: string): any[]
     return seriesData;
 }
 
+// Fixed threshold constants for equipment buy types
+export const ECONOMY_THRESHOLDS = {
+    SEMI_ECO: 10000,      // < 10k = Semi-eco
+    SEMI_BUY: 20000       // 10k-20k = Semi-buy, >= 20k = Full buy
+};
+
+// Helper function to classify equipment value into buy type
+export function classifyBuyType(equipmentValue: number): string {
+    if (equipmentValue < ECONOMY_THRESHOLDS.SEMI_ECO) {
+        return 'Semi-eco';
+    } else if (equipmentValue < ECONOMY_THRESHOLDS.SEMI_BUY) {
+        return 'Semi-buy';
+    } else {
+        return 'Full buy';
+    }
+}
+
+// Get equipment types for all rounds with team names
+export function getRoundEquipmentTypes(economyData: any, teamNames: Record<number, string>): any[] {
+    const result: any[] = [];
+
+    if (!economyData.teams || !economyData.teams[1] || !economyData.teams[2]) {
+        return result;
+    }
+
+    const team1Name = teamNames[1] || 'Team 1';
+    const team2Name = teamNames[2] || 'Team 2';
+
+    const team1Rounds = economyData.teams[1].rounds;
+    const team2Rounds = economyData.teams[2].rounds;
+
+    if (!team1Rounds || !team2Rounds) {
+        return result;
+    }
+
+    // Get the number of rounds (should be same for both teams)
+    const roundKeys = Object.keys(team1Rounds);
+
+    roundKeys.forEach((key, index) => {
+        const roundNum = index + 1;
+        const team1Round = team1Rounds[key];
+        const team2Round = team2Rounds[key];
+
+        if (!team1Round || !team2Round) return;
+
+        const team1Equipment = team1Round.economy || 0;
+        const team2Equipment = team2Round.economy || 0;
+
+        const roundData: any = {
+            round: roundNum,
+            [`${team1Name} Equipment`]: team1Equipment,
+            [`${team2Name} Equipment`]: team2Equipment,
+            [`${team1Name} Type`]: classifyBuyType(team1Equipment),
+            [`${team2Name} Type`]: classifyBuyType(team2Equipment)
+        };
+
+        result.push(roundData);
+    });
+
+    return result;
+}
+

@@ -53,7 +53,7 @@ const LineChart: React.FC<LineChartProps> = ({
     const containerHeight = 400;
 
     // Set up margins and dimensions
-    const margin = { top: 20, right: 60, bottom: 50, left: 80 };
+    const margin = { top: 20, right: 100, bottom: 50, left: 80 };
     const width = containerWidth - margin.left - margin.right;
     const height = containerHeight - margin.top - margin.bottom;
 
@@ -154,6 +154,59 @@ const LineChart: React.FC<LineChartProps> = ({
       )
       .selectAll("line")
       .attr("stroke", "#ffffff");
+
+    // Add threshold lines for buy types with matching colors
+    const thresholds = [
+      { value: 5000, color: "#fb923c" }, // orange
+      { value: 10000, color: "#eab308" }, // yellow
+      { value: 20000, color: "#22c55e" } // green
+    ];
+
+    thresholds.forEach((threshold) => {
+      // Add horizontal threshold line
+      svg
+        .append("line")
+        .attr("x1", 0)
+        .attr("x2", width)
+        .attr("y1", yScale(threshold.value))
+        .attr("y2", yScale(threshold.value))
+        .attr("stroke", threshold.color)
+        .attr("stroke-width", 1.5)
+        .attr("stroke-dasharray", "5,5")
+        .attr("opacity", 0.6);
+
+      // Add label for threshold line
+      svg
+        .append("text")
+        .attr("x", width - 5)
+        .attr("y", yScale(threshold.value) - 5)
+        .attr("text-anchor", "end")
+        .attr("fill", threshold.color)
+        .attr("font-size", "11px")
+        .attr("font-weight", "500")
+        .text(`$${(threshold.value / 1000).toFixed(0)}k`);
+    });
+
+    // Add zone labels at threshold line positions with different colors
+    // Position labels to the right of the chart, aligned with threshold lines
+    const zones = [
+      { label: "Semi-eco", value: 5000, color: "#fb923c" }, // orange at 5k line
+      { label: "Semi-buy", value: 10000, color: "#eab308" }, // yellow at 10k line
+      { label: "Full buy", value: 20000, color: "#22c55e" } // green at 20k line
+    ];
+
+    zones.forEach((zone) => {
+      svg
+        .append("text")
+        .attr("x", width + 10)
+        .attr("y", yScale(zone.value))
+        .attr("text-anchor", "start")
+        .attr("fill", zone.color)
+        .attr("font-size", "11px")
+        .attr("font-weight", "500")
+        .attr("alignment-baseline", "middle")
+        .text(zone.label);
+    });
 
     // Loop through each series to draw line and data points
     seriesData.forEach((series, seriesIndex) => {
