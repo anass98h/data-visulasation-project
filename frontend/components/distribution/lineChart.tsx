@@ -6,8 +6,10 @@ import * as d3 from "d3";
 interface DataSeries {
   x: number[];
   y: number[];
-  label: string; // e.g., "CT", "T"
+  label: string; // e.g., "Vitality", "The MongolZ"
   color: string; // e.g., "#3b82f6", "#ef4444"
+  teamId?: number; // Team identifier (1 or 2)
+  winners?: number[]; // Array of winner team IDs per round
 }
 
 interface LineChartProps {
@@ -31,6 +33,7 @@ const LineChart: React.FC<LineChartProps> = ({
   useEffect(() => {
     if (
       !seriesData ||
+      !Array.isArray(seriesData) ||
       seriesData.length === 0 ||
       !svgRef.current ||
       !containerRef.current
@@ -159,7 +162,7 @@ const LineChart: React.FC<LineChartProps> = ({
         .line<number>()
         .x((d, i) => xScale(series.x[i]))
         .y((d) => yScale(d))
-        .curve(d3.curveMonotoneX);
+        .curve(d3.curveLinear);
 
       // Add the line path
       svg
@@ -221,6 +224,23 @@ const LineChart: React.FC<LineChartProps> = ({
           d3.select(this).transition().duration(200).attr("r", 4);
           tooltip.style("visibility", "hidden");
         });
+
+      // Add trophy icons for winning rounds
+      if (series.teamId && series.winners) {
+        series.y.forEach((d, i) => {
+          // Check if this team won this round
+          if (series.winners![i] === series.teamId) {
+            svg
+              .append("text")
+              .attr("x", xScale(series.x[i]))
+              .attr("y", yScale(d) - 15) // Position above the point
+              .text("🏆")
+              .attr("font-size", "16px")
+              .attr("text-anchor", "middle")
+              .style("pointer-events", "none"); // Don't interfere with hover
+          }
+        });
+      }
     });
 
     // Add axis styling

@@ -1,6 +1,7 @@
 'use client';
 
-import { EconomyDropdown } from "@/components/distribution/dropdown";
+import { TeamSwitch } from "@/components/distribution/teamSwitch";
+import { MatchDropdown } from "@/components/distribution/matchDropdown";
 import LineChart from "@/components/distribution/lineChart";
 import Economy from "@/components/distribution/economy";
 import { useEffect, useState } from "react";
@@ -14,7 +15,8 @@ export default function Home() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [dropdownValue, setDropdownValue] = useState<number>(1);
+  const [teamSelection, setTeamSelection] = useState<number>(1);
+  const [matchSelection, setMatchSelection] = useState<string>("match1");
   const [teamNames, setTeamNames] = useState<Record<number, string>>({});
   const [economyData, setEconomyData] = useState<Record<string, any>>({});
   const [roundsData, setRoundsData] = useState<any[]>([]);
@@ -58,32 +60,44 @@ export default function Home() {
 
   //will be invoked when the data is changed
   useEffect(() => {
-    console.log("Dropdown value changed:", dropdownValue);
-    // when the dropdown value changes, we will render different team's economy
+    console.log("Team selection changed:", teamSelection);
+    // when the team selection changes, we will render different team's economy
 
     if (!economyData.teams) return;
 
     // If "Both Teams" is selected (value = 0), use extractXYForBothTeams
     // Otherwise, use extractXY for single team
-    if (dropdownValue === 0) {
+    if (teamSelection === 0) {
       const result = distributionHelpers.extractXYForBothTeams(economyData, 'economy');
       setLineChartData(result);
       console.log("Extracted XY data for both teams:", result);
     } else {
       // Single team selected (1 or 2)
-      const result = distributionHelpers.extractXY(economyData, 'economy', undefined, dropdownValue);
+      const result = distributionHelpers.extractXY(economyData, 'economy', undefined, teamSelection);
+
+      // Extract winner data from rounds
+      const winners: number[] = [];
+      if (economyData.teams[teamSelection]?.rounds) {
+        const roundsArray = Object.values(economyData.teams[teamSelection].rounds);
+        roundsArray.forEach((round: any) => {
+          winners.push(round.winner);
+        });
+      }
+
       // Convert to array format for LineChart with team name and color
       const teamData = [{
         x: result.x,
         y: result.y,
-        label: economyData.teams[dropdownValue]?.name || `Team ${dropdownValue}`,
-        color: dropdownValue === 1 ? '#3b82f6' : '#ef4444'
+        label: economyData.teams[teamSelection]?.name || `Team ${teamSelection}`,
+        color: teamSelection === 1 ? '#3b82f6' : '#ef4444',
+        teamId: teamSelection,
+        winners: winners
       }];
       setLineChartData(teamData);
       console.log("Extracted XY data for single team:", teamData);
     }
 
-  }, [dropdownValue, economyData]);
+  }, [teamSelection, economyData]);
 
   if (loading) {
     return (
@@ -109,11 +123,10 @@ export default function Home() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-muted-foreground">Select Team:</span>
-          <EconomyDropdown
-            value={dropdownValue}
-            onValueChange={setDropdownValue}
-            teamNames={teamNames}
+          <span className="text-sm font-medium text-muted-foreground">Match:</span>
+          <MatchDropdown
+            value={matchSelection}
+            onValueChange={setMatchSelection}
           />
         </div>
       </div>
@@ -124,8 +137,15 @@ export default function Home() {
       {/* Line Chart */}
       <LineChart
         seriesData={lineChartData}
-        title={dropdownValue === 0 ? 'Both Teams Economy Over Rounds' : `${economyData.teams?.[dropdownValue]?.name || 'Team'} Economy Over Rounds`}
-        description={dropdownValue === 0 ? 'Compare economy performance across game rounds' : `Track ${economyData.teams?.[dropdownValue]?.name || 'team'} economy performance across game rounds`}
+        title={teamSelection === 0 ? 'Both Teams Economy Over Rounds' : `${economyData.teams?.[teamSelection]?.name || 'Team'} Economy Over Rounds`}
+        description={teamSelection === 0 ? 'Compare economy performance across game rounds' : `Track ${economyData.teams?.[teamSelection]?.name || 'team'} economy performance across game rounds`}
+      />
+
+      {/* Team Selection Switch (below chart) */}
+      <TeamSwitch
+        value={teamSelection}
+        onValueChange={setTeamSelection}
+        teamNames={teamNames}
       />
     </div>
   );

@@ -69,17 +69,29 @@ export function calculateEconomy(data: any[], teamNames: Record<number, string>)
             const tEconomy = tStart + tEquip;
 
             // Determine which team gets which economy based on round number
-            // Rounds 1-15: Team 1 is CT, Team 2 is T
-            // Rounds 16+: Teams swap sides (Team 1 is T, Team 2 is CT)
+            // Rounds 1-12: Team 1 is CT, Team 2 is T
+            // Rounds 13+: Teams swap sides (Team 1 is T, Team 2 is CT)
             let team1Economy: number;
             let team2Economy: number;
 
-            if (roundNum <= 15) {
+            if (roundNum <= 12) {
                 team1Economy = ctEconomy; // Team 1 started as CT
                 team2Economy = tEconomy;  // Team 2 started as T
             } else {
                 team1Economy = tEconomy;  // Team 1 swapped to T
                 team2Economy = ctEconomy; // Team 2 swapped to CT
+            }
+
+            // Determine which team won this round
+            const winnerSide = round.winnerSide; // "CT" or "T"
+            let winnerTeam: 1 | 2;
+
+            if (roundNum <= 12) {
+                // First half: Team 1 = CT, Team 2 = T
+                winnerTeam = winnerSide === "CT" ? 1 : 2;
+            } else {
+                // Second half: SWAPPED - Team 1 = T, Team 2 = CT
+                winnerTeam = winnerSide === "CT" ? 2 : 1;
             }
 
             totalTeam1Economy += team1Economy;
@@ -88,13 +100,15 @@ export function calculateEconomy(data: any[], teamNames: Record<number, string>)
             // Store Team 1 economy for this round
             result.teams[1].rounds[String(idx)] = {
                 economy: team1Economy,
-                currency: round.currency ?? 'USD'
+                currency: round.currency ?? 'USD',
+                winner: winnerTeam
             };
 
             // Store Team 2 economy for this round
             result.teams[2].rounds[String(idx)] = {
                 economy: team2Economy,
-                currency: round.currency ?? 'USD'
+                currency: round.currency ?? 'USD',
+                winner: winnerTeam
             };
 
             idx += 1;
@@ -168,13 +182,24 @@ export function extractXYForBothTeams(dataset: any, yFeatureName: string): any[]
 
     const seriesData = [];
 
+    // Extract winner data from rounds
+    const winners: number[] = [];
+    if (dataset.teams[1].rounds) {
+        const roundsArray = Object.values(dataset.teams[1].rounds);
+        roundsArray.forEach((round: any) => {
+            winners.push(round.winner);
+        });
+    }
+
     // Extract data for Team 1
     const team1Data = extractXY(dataset, yFeatureName, undefined, 1);
     seriesData.push({
         x: team1Data.x,
         y: team1Data.y,
         label: dataset.teams[1].name,
-        color: '#3b82f6' // blue
+        color: '#3b82f6', // blue
+        teamId: 1,
+        winners: winners
     });
 
     // Extract data for Team 2
@@ -183,7 +208,9 @@ export function extractXYForBothTeams(dataset: any, yFeatureName: string): any[]
         x: team2Data.x,
         y: team2Data.y,
         label: dataset.teams[2].name,
-        color: '#ef4444' // red
+        color: '#ef4444', // red
+        teamId: 2,
+        winners: winners
     });
 
     return seriesData;
