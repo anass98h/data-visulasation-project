@@ -11,6 +11,7 @@ import * as distributionHelpers from "@/lib/distribution";
 const CS2Dashboard = () => {
   const [matchData, setMatchData] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
+  const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null); // NEW: team+side aggregated
   const [isLoading, setIsLoading] = useState(true);
   const [teamSelection, setTeamSelection] = useState(0); // Default set to 0 (both teams)
   const [matchSelection, setMatchSelection] = useState("match1");
@@ -79,8 +80,28 @@ const CS2Dashboard = () => {
       }
     };
 
+    const loadTeamSideHeatmapData = async () => {
+      try {
+        const response = await fetch("/heatmaps_by_team_side.json");
+        if (!response.ok) {
+          console.log(
+            "No heatmaps_by_team_side.json found - team+side heatmap won't be available"
+          );
+          return;
+        }
+        const data = await response.json();
+        setTeamSideHeatmapData(data);
+        console.log("Team+side heatmap data loaded successfully");
+      } catch (error) {
+        console.log(
+          "Error loading team+side heatmap data - continuing without it"
+        );
+      }
+    };
+
     loadMatchData();
     loadHeatmapData();
+    loadTeamSideHeatmapData();
   }, []);
 
   // Calculate economy data when match data changes
@@ -296,6 +317,7 @@ const CS2Dashboard = () => {
           <CS2MapRenderer
             matchData={null}
             heatmapData={null}
+            teamSideHeatmapData={null}
             teamMapping={null}
             staticTeamMapping={null}
           />
@@ -395,6 +417,7 @@ const CS2Dashboard = () => {
         <CS2MapRenderer
           matchData={matchData}
           heatmapData={heatmapData}
+          teamSideHeatmapData={teamSideHeatmapData}
           teamMapping={dynamicTeamMapping}
           staticTeamMapping={initialTeamMapping} // PASS STATIC MAP
           setCurrentRoundContext={setCurrentRoundContext}
