@@ -2,7 +2,8 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
-import { EconomyDropdown } from "@/components/distribution/dropdown";
+import { TeamSwitch } from "@/components/distribution/teamSwitch";
+import { MatchDropdown } from "@/components/distribution/matchDropdown";
 import LineChart from "@/components/distribution/lineChart";
 import Economy from "@/components/distribution/economy";
 import * as distributionHelpers from "@/lib/distribution";
@@ -12,12 +13,31 @@ const CS2Dashboard = () => {
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null); // NEW: team+side aggregated
   const [isLoading, setIsLoading] = useState(true);
-  const [dropdownValue, setDropdownValue] = useState("both"); // Default set to "both"
+  const [teamSelection, setTeamSelection] = useState(0); // Default set to 0 (both teams)
+  const [matchSelection, setMatchSelection] = useState("match1");
   const [economyData, setEconomyData] = useState({});
   const [lineChartData, setLineChartData] = useState([]);
 
   // State to track the currently selected round for map and context rendering
   const [currentRoundContext, setCurrentRoundContext] = useState(1);
+
+  // 1. Memo to derive STATIC initial CT/T Team Names (moved up before useEffects that use it)
+  const initialTeamMapping = useMemo(() => {
+    const teams = { CT: null, T: null };
+    if (!matchData?.ticks) return teams;
+
+    for (const tick of matchData.ticks) {
+      if (tick.side === "CT" && !teams.CT) {
+        teams.CT = tick.team;
+      }
+      if (tick.side === "T" && !teams.T) {
+        teams.T = tick.team;
+      }
+      if (teams.CT && teams.T) break;
+    }
+
+    return teams;
+  }, [matchData]);
 
   // Load match data and heatmap from public folder
   useEffect(() => {
@@ -86,22 +106,27 @@ const CS2Dashboard = () => {
 
   // Calculate economy data when match data changes
   useEffect(() => {
-    if (matchData) {
+    if (matchData && initialTeamMapping.CT && initialTeamMapping.T) {
       try {
+        // Convert initialTeamMapping format to the format expected by calculateEconomy
+        const teamNamesForCalc = {
+          1: initialTeamMapping.CT, // Team 1 started as CT
+          2: initialTeamMapping.T    // Team 2 started as T
+        };
         const calculatedEconomy = distributionHelpers.calculateEconomy([
           matchData,
-        ]);
+        ], teamNamesForCalc);
         console.log("Calculated economy:", calculatedEconomy);
         setEconomyData(calculatedEconomy);
       } catch (error) {
         console.error("Error calculating economy:", error);
       }
     }
-  }, [matchData]);
+  }, [matchData, initialTeamMapping]);
 
-  // Corrected data extraction to handle object-based rounds
+  // Corrected data extraction to handle object-based rounds with new structure
   useEffect(() => {
-    if (!economyData.ct_economy || !economyData.t_economy) {
+    if (!economyData.teams || !economyData.teams[1] || !economyData.teams[2]) {
       setLineChartData([]);
       return;
     }
@@ -109,8 +134,8 @@ const CS2Dashboard = () => {
     const newSeriesData = [];
 
     // Helper function to extract and format data for a team
-    const extractTeamSeries = (team, label, color) => {
-      const teamEconomyData = economyData[`${team}_economy`];
+    const extractTeamSeries = (teamId, label, color) => {
+      const teamEconomyData = economyData.teams[teamId];
 
       if (
         teamEconomyData?.rounds &&
@@ -129,33 +154,39 @@ const CS2Dashboard = () => {
           (key) => teamEconomyData.rounds[key].economy
         );
 
+        const winners = roundKeys.map(
+          (key) => teamEconomyData.rounds[key].winner
+        );
+
         if (economySeries.length > 0) {
           return {
             x: roundNumbers,
             y: economySeries,
             label: label,
             color: color,
+            teamId: teamId,
+            winners: winners,
           };
         }
       }
       return null;
     };
 
-    if (dropdownValue === "ct") {
-      const ctSeries = extractTeamSeries("ct", "CT Economy", "#2563eb");
-      if (ctSeries) newSeriesData.push(ctSeries);
-    } else if (dropdownValue === "t") {
-      const tSeries = extractTeamSeries("t", "T Economy", "#dc2626");
-      if (tSeries) newSeriesData.push(tSeries);
-    } else if (dropdownValue === "both") {
-      const ctSeries = extractTeamSeries("ct", "CT Economy", "#3b82f6");
-      const tSeries = extractTeamSeries("t", "T Economy", "#ef4444");
-      if (ctSeries) newSeriesData.push(ctSeries);
-      if (tSeries) newSeriesData.push(tSeries);
+    if (teamSelection === 1) {
+      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#2563eb");
+      if (team1Series) newSeriesData.push(team1Series);
+    } else if (teamSelection === 2) {
+      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#dc2626");
+      if (team2Series) newSeriesData.push(team2Series);
+    } else if (teamSelection === 0) {
+      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#3b82f6");
+      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#ef4444");
+      if (team1Series) newSeriesData.push(team1Series);
+      if (team2Series) newSeriesData.push(team2Series);
     }
 
     setLineChartData(newSeriesData);
-  }, [dropdownValue, economyData]);
+  }, [teamSelection, economyData]);
 
   // Handle file upload
   const handleFileUpload = async (event) => {
@@ -174,24 +205,6 @@ const CS2Dashboard = () => {
       }
     }
   };
-
-  // 1. Memo to derive STATIC initial CT/T Team Names
-  const initialTeamMapping = useMemo(() => {
-    const teams = { CT: null, T: null };
-    if (!matchData?.ticks) return teams;
-
-    for (const tick of matchData.ticks) {
-      if (tick.side === "CT" && !teams.CT) {
-        teams.CT = tick.team;
-      }
-      if (tick.side === "T" && !teams.T) {
-        teams.T = tick.team;
-      }
-      if (teams.CT && teams.T) break;
-    }
-
-    return teams;
-  }, [matchData]);
 
   // 2. Dynamic function to determine current team assignments based on round number
   const getCurrentTeamsForRound = (roundNum) => {
@@ -239,14 +252,14 @@ const CS2Dashboard = () => {
     return Math.max(...matchData.rounds.map((r) => r.endTick - r.startTick));
   }, [matchData]);
 
-  // Create totalEconomy object from new structure
-  const totalEconomy =
-    economyData.ct_economy && economyData.t_economy
-      ? {
-          ct_economy: economyData.ct_economy.total_value,
-          t_economy: economyData.t_economy.total_value,
-        }
-      : undefined;
+  // Create teamNames object for components
+  const teamNames = useMemo(() => {
+    if (!initialTeamMapping.CT || !initialTeamMapping.T) return {};
+    return {
+      1: initialTeamMapping.CT, // Team 1 started as CT
+      2: initialTeamMapping.T    // Team 2 started as T
+    };
+  }, [initialTeamMapping]);
 
   // Determine final score and winner based on the last round
   const finalRound = matchData?.rounds?.[matchData.rounds.length - 1];
@@ -317,17 +330,15 @@ const CS2Dashboard = () => {
   let chartTitle = "Economy Over Rounds";
   let chartDescription = "Track economy performance across game rounds";
 
-  if (dropdownValue === "ct") {
-    chartTitle = "CT Economy Over Rounds";
-    chartDescription =
-      "Track Counter-Terrorist economy performance across game rounds";
-  } else if (dropdownValue === "t") {
-    chartTitle = "T Economy Over Rounds";
-    chartDescription = "Track Terrorist economy performance across game rounds";
-  } else if (dropdownValue === "both") {
-    chartTitle = "CT vs T Economy Over Rounds";
-    chartDescription =
-      "Compare Counter-Terrorist and Terrorist economy performance across game rounds";
+  if (teamSelection === 1) {
+    chartTitle = `${teamNames[1] || 'Team 1'} Economy Over Rounds`;
+    chartDescription = `Track ${teamNames[1] || 'Team 1'} economy performance across game rounds`;
+  } else if (teamSelection === 2) {
+    chartTitle = `${teamNames[2] || 'Team 2'} Economy Over Rounds`;
+    chartDescription = `Track ${teamNames[2] || 'Team 2'} economy performance across game rounds`;
+  } else if (teamSelection === 0) {
+    chartTitle = `${teamNames[1] || 'Team 1'} vs ${teamNames[2] || 'Team 2'} Economy Over Rounds`;
+    chartDescription = `Compare ${teamNames[1] || 'Team 1'} and ${teamNames[2] || 'Team 2'} economy performance across game rounds`;
   }
 
   // Display string for the teams uses the INITIAL static map for context
@@ -413,7 +424,7 @@ const CS2Dashboard = () => {
         />
 
         {/* Economy Distribution Section */}
-        {totalEconomy && (
+        {economyData.teams && (
           <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-6">
               <div>
@@ -425,14 +436,14 @@ const CS2Dashboard = () => {
                   Analyze team economy performance across game rounds
                 </p>
               </div>
-              {/* Added flex-wrap for smaller screens */}
+              {/* Match selection dropdown */}
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-medium text-gray-400">
-                  Select Team:
+                  Match:
                 </span>
-                <EconomyDropdown
-                  value={dropdownValue}
-                  onValueChange={setDropdownValue}
+                <MatchDropdown
+                  value={matchSelection}
+                  onValueChange={setMatchSelection}
                 />
                 {/* Team Side Legend (USES DYNAMIC MAPPING) */}
                 <div className="flex items-center gap-4 ml-4 text-sm font-medium">
@@ -450,7 +461,7 @@ const CS2Dashboard = () => {
 
             {/* Economy Cards */}
             <div className="mb-6">
-              <Economy totalEconomy={totalEconomy} />
+              <Economy economyData={economyData} teamNames={teamNames} />
             </div>
 
             {/* Line Chart: Passed seriesData instead of data */}
@@ -459,6 +470,15 @@ const CS2Dashboard = () => {
               title={chartTitle}
               description={chartDescription}
             />
+
+            {/* Team Selection Switch (below chart) */}
+            <div className="mt-6">
+              <TeamSwitch
+                value={teamSelection}
+                onValueChange={setTeamSelection}
+                teamNames={teamNames}
+              />
+            </div>
           </div>
         )}
 

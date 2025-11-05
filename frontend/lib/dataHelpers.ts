@@ -49,4 +49,29 @@ export function extractFeatures(data: any, features: string[]): Record<string, a
     }); 
 }
 
+// function that extracts team names from match data
+// Returns mapping of team identifiers to actual team names
+// 1 = team that started as CT, 2 = team that started as T
+export function extractTeamNames(matchData: any): Record<number, string> {
+    const teams: Record<number, string> = {};
+
+    if (!matchData?.ticks || matchData.ticks.length === 0) {
+        return teams;
+    }
+
+    // Look through early ticks to find which team started on which side
+    for (const tick of matchData.ticks) {
+        if (tick.side === "CT" && !teams[1]) {
+            teams[1] = tick.team;
+        }
+        if (tick.side === "T" && !teams[2]) {
+            teams[2] = tick.team;
+        }
+        // Stop once we've found both teams
+        if (teams[1] && teams[2]) break;
+    }
+
+    return teams;
+}
+
 // function that calculates
