@@ -44,3 +44,5 @@ frontend/next-env.d.ts
 frontend/public/match_data.json
 utils/match_data.json
 utils/venv/
+
+.local/
