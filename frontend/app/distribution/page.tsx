@@ -1,8 +1,8 @@
 'use client';
 
-import { EconomyDropdown } from "@/components/distribution/Dropdown";
-import LineChart from "@/components/distribution/LineChart";
-import Economy from "@/components/distribution/Economy";
+import { EconomyDropdown } from "@/components/distribution/dropdown";
+import LineChart from "@/components/distribution/lineChart";
+import Economy from "@/components/distribution/economy";
 import { useEffect, useState } from "react";
 import * as dataHelpers from "@/lib/dataHelpers";
 import * as distributionHelpers from "@/lib/distribution";
@@ -14,7 +14,8 @@ export default function Home() {
 
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [dropdownValue, setDropdownValue] = useState<string>('ct');
+  const [dropdownValue, setDropdownValue] = useState<number>(1);
+  const [teamNames, setTeamNames] = useState<Record<number, string>>({});
   const [economyData, setEconomyData] = useState<Record<string, any>>({});
   const [roundsData, setRoundsData] = useState<any[]>([]);
   const [lineChartData, setLineChartData] = useState<any>({});
@@ -30,13 +31,18 @@ export default function Home() {
         console.log("Loaded match data:", loaded);
         setData(loaded);
 
+        //1. extract team names
+        const extractedTeamNames = dataHelpers.extractTeamNames(loaded);
+        console.log("Extracted team names:", extractedTeamNames);
+        setTeamNames(extractedTeamNames);
+
         //2. extract the rounds
         const extractedRounds = dataHelpers.extractFeatures([loaded], ['rounds']);
         console.log("Extracted rounds data:", extractedRounds);
         setRoundsData(extractedRounds);
 
-        //3. calculate economy
-        const calculatedEconomy = distributionHelpers.calculateEconomy([loaded]);
+        //3. calculate economy with team names
+        const calculatedEconomy = distributionHelpers.calculateEconomy([loaded], extractedTeamNames);
         console.log("Calculated economy:", calculatedEconomy);
         setEconomyData(calculatedEconomy);
         setLoading(false);
@@ -53,23 +59,31 @@ export default function Home() {
   //will be invoked when the data is changed
   useEffect(() => {
     console.log("Dropdown value changed:", dropdownValue);
-    // when the dropdown value changes, we will render different side's economy
+    // when the dropdown value changes, we will render different team's economy
 
-    if (!economyData.ct_economy && !economyData.t_economy) return;
+    if (!economyData.teams) return;
 
-    // x will be automatically set to round numbers (1, 2, 3, ...)
-    // pass economyData, y feature name ('economy'), and the side based on dropdown
-    const result = distributionHelpers.extractXY(economyData, 'economy', undefined, dropdownValue as 'ct' | 't');
-    setLineChartData(result);
-    console.log("Extracted XY data:", result);
+    // If "Both Teams" is selected (value = 0), use extractXYForBothTeams
+    // Otherwise, use extractXY for single team
+    if (dropdownValue === 0) {
+      const result = distributionHelpers.extractXYForBothTeams(economyData, 'economy');
+      setLineChartData(result);
+      console.log("Extracted XY data for both teams:", result);
+    } else {
+      // Single team selected (1 or 2)
+      const result = distributionHelpers.extractXY(economyData, 'economy', undefined, dropdownValue);
+      // Convert to array format for LineChart with team name and color
+      const teamData = [{
+        x: result.x,
+        y: result.y,
+        label: economyData.teams[dropdownValue]?.name || `Team ${dropdownValue}`,
+        color: dropdownValue === 1 ? '#3b82f6' : '#ef4444'
+      }];
+      setLineChartData(teamData);
+      console.log("Extracted XY data for single team:", teamData);
+    }
 
   }, [dropdownValue, economyData]);
-
-  // Create totalEconomy object from new structure
-  const totalEconomy = economyData.ct_economy && economyData.t_economy ? {
-    ct_economy: economyData.ct_economy.total_value,
-    t_economy: economyData.t_economy.total_value
-  } : undefined;
 
   if (loading) {
     return (
@@ -99,18 +113,19 @@ export default function Home() {
           <EconomyDropdown
             value={dropdownValue}
             onValueChange={setDropdownValue}
+            teamNames={teamNames}
           />
         </div>
       </div>
 
       {/* Economy Cards */}
-      <Economy totalEconomy={totalEconomy}/>
+      <Economy economyData={economyData} teamNames={teamNames} />
 
       {/* Line Chart */}
       <LineChart
-        data={lineChartData}
-        title={`${dropdownValue.toUpperCase()} Economy Over Rounds`}
-        description={`Track ${dropdownValue === 'ct' ? 'Counter-Terrorist' : 'Terrorist'} economy performance across game rounds`}
+        seriesData={lineChartData}
+        title={dropdownValue === 0 ? 'Both Teams Economy Over Rounds' : `${economyData.teams?.[dropdownValue]?.name || 'Team'} Economy Over Rounds`}
+        description={dropdownValue === 0 ? 'Compare economy performance across game rounds' : `Track ${economyData.teams?.[dropdownValue]?.name || 'team'} economy performance across game rounds`}
       />
     </div>
   );
