@@ -53,6 +53,7 @@ const CS2MapRenderer = ({
   const [selectedRound, setSelectedRound] = useState(0);
   const [radarImage, setRadarImage] = useState(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
+  const [heatmapOpacity, setHeatmapOpacity] = useState(0.5); // Heatmap opacity control (default 50%)
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const playerStatesRef = useRef(new Map());
@@ -207,7 +208,8 @@ const CS2MapRenderer = ({
           // Density is normalized 0-1
           const density = ct.grid[row][col];
           if (density > 0) {
-            const alpha = Math.min(density * 1.0, 0.95);
+            // Gentler opacity formula: density weighted more heavily
+            const alpha = Math.min(density * 0.7 + heatmapOpacity * 0.3, 0.85);
             ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
 
             ctx.fillRect(
@@ -226,8 +228,9 @@ const CS2MapRenderer = ({
         for (let col = 0; col < t.grid[row].length; col++) {
           const density = t.grid[row][col];
           if (density > 0) {
-            const alpha = Math.min(density * 1.0, 0.95);
-            ctx.fillStyle = `rgba(185, 28, 28, ${alpha})`;
+            // Gentler opacity formula: density weighted more heavily
+            const alpha = Math.min(density * 0.7 + heatmapOpacity * 0.3, 0.85);
+            ctx.fillStyle = `rgba(220, 38, 38, ${alpha})`;
 
             ctx.fillRect(
               col * cellWidth + drawOffset,
@@ -291,8 +294,8 @@ const CS2MapRenderer = ({
     let lastRoundNum = getCurrentRound()?.roundNum;
 
     const animate = () => {
-      ctx.fillStyle = "#1a1a1a";
-      ctx.fillRect(0, 0, width, height);
+      // Clear canvas with transparency instead of dark background
+      ctx.clearRect(0, 0, width, height);
 
       if (radarImage) {
         if (showHeatmap) {
@@ -651,6 +654,28 @@ const CS2MapRenderer = ({
               >
                 {showHeatmap ? "Hide Heatmap" : "Show Heatmap"}
               </button>
+
+              {/* Heatmap Opacity Slider */}
+              {showHeatmap && (allRoundHeatmapData || teamSideHeatmaps) && (
+                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
+                  <label className="text-sm font-medium text-gray-300 whitespace-nowrap">
+                    Opacity:
+                  </label>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={heatmapOpacity * 100}
+                    onChange={(e) =>
+                      setHeatmapOpacity(parseInt(e.target.value) / 100)
+                    }
+                    className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                  />
+                  <span className="text-xs text-gray-400 min-w-[3ch]">
+                    {Math.round(heatmapOpacity * 100)}%
+                  </span>
+                </div>
+              )}
 
               {currentHeatmapData && showHeatmap && (
                 <div className="text-sm text-gray-300 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
