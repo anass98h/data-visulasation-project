@@ -1,5 +1,5 @@
 'use client';
-import {extractFeatures} from '@/lib/dataHelpers';
+import {extractFeatures, extractTeamNames} from '@/lib/dataHelpers';
 
 // Team configuration constants
 export const TEAM_CONFIG = {
@@ -276,5 +276,44 @@ export function getRoundEquipmentTypes(economyData: any, teamNames: Record<numbe
     });
 
     return result;
+}
+
+/**
+ * Standalone method to get round equipment types directly from match data
+ * This is a convenience wrapper that handles all the intermediate steps
+ *
+ * @param matchData - The raw match data object
+ * @returns Array of round data with equipment values and buy types for both teams
+ *
+ * @example
+ * ```typescript
+ * import { getRoundEquipmentTypesFromMatch } from '@/lib/distribution';
+ *
+ * const matchData = await loadMatchData('file');
+ * const roundTypes = getRoundEquipmentTypesFromMatch(matchData);
+ * console.table(roundTypes);
+ * ```
+ */
+export function getRoundEquipmentTypesFromMatch(matchData: any): any[] {
+    if (!matchData) {
+        console.error('No match data provided');
+        return [];
+    }
+
+    try {
+        // Step 1: Extract team names from match data
+        const teamNames = extractTeamNames(matchData);
+
+        // Step 2: Calculate economy data
+        const economyData = calculateEconomy([matchData], teamNames);
+
+        // Step 3: Get round equipment types
+        const roundTypes = getRoundEquipmentTypes(economyData, teamNames);
+
+        return roundTypes;
+    } catch (error) {
+        console.error('Error getting round equipment types:', error);
+        return [];
+    }
 }
 
