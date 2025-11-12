@@ -124,68 +124,50 @@ const CS2Dashboard = () => {
     }
   }, [matchData, initialTeamMapping]);
 
-  // Corrected data extraction to handle object-based rounds with new structure
+  // Extract line chart data with side-based colors and line styles
   useEffect(() => {
     if (!economyData.teams || !economyData.teams[1] || !economyData.teams[2]) {
       setLineChartData([]);
       return;
     }
 
-    const newSeriesData = [];
+    if (teamSelection === 0) {
+      // Both teams: use extractXYForBothTeams with side-based colors and line styles
+      const result = distributionHelpers.extractXYForBothTeams(economyData, 'economy');
+      setLineChartData(result);
+    } else {
+      // Single team: use extractXY
+      const result = distributionHelpers.extractXY(economyData, 'economy', undefined, teamSelection);
 
-    // Helper function to extract and format data for a team
-    const extractTeamSeries = (teamId, label, color) => {
-      const teamEconomyData = economyData.teams[teamId];
-
-      if (
-        teamEconomyData?.rounds &&
-        typeof teamEconomyData.rounds === "object" &&
-        teamEconomyData.rounds !== null
-      ) {
-        const roundKeys = Object.keys(teamEconomyData.rounds).filter(
-          (key) => !isNaN(Number(key))
-        );
-
-        roundKeys.sort((a, b) => Number(a) - Number(b));
-
-        const roundNumbers = roundKeys.map(Number);
-
-        const economySeries = roundKeys.map(
-          (key) => teamEconomyData.rounds[key].economy
-        );
-
-        const winners = roundKeys.map(
-          (key) => teamEconomyData.rounds[key].winner
-        );
-
-        if (economySeries.length > 0) {
-          return {
-            x: roundNumbers,
-            y: economySeries,
-            label: label,
-            color: color,
-            teamId: teamId,
-            winners: winners,
-          };
-        }
+      // Extract winner data from rounds
+      const winners = [];
+      if (economyData.teams[teamSelection]?.rounds) {
+        const roundsArray = Object.values(economyData.teams[teamSelection].rounds);
+        roundsArray.forEach((round) => {
+          winners.push(round.winner);
+        });
       }
-      return null;
-    };
 
-    if (teamSelection === 1) {
-      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#2563eb");
-      if (team1Series) newSeriesData.push(team1Series);
-    } else if (teamSelection === 2) {
-      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#dc2626");
-      if (team2Series) newSeriesData.push(team2Series);
-    } else if (teamSelection === 0) {
-      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#3b82f6");
-      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#ef4444");
-      if (team1Series) newSeriesData.push(team1Series);
-      if (team2Series) newSeriesData.push(team2Series);
+      // Calculate sides for single team view
+      const sides = result.x.map((roundNum) =>
+        teamSelection === 1
+          ? (roundNum <= 12 ? 'CT' : 'T')  // Team 1 starts as CT
+          : (roundNum <= 12 ? 'T' : 'CT')  // Team 2 starts as T
+      );
+
+      // Convert to array format for LineChart with side-based styling
+      const teamData = [{
+        x: result.x,
+        y: result.y,
+        label: economyData.teams[teamSelection]?.name || `Team ${teamSelection}`,
+        color: teamSelection === 1 ? '#3b82f6' : '#ef4444',
+        teamId: teamSelection,
+        winners: winners,
+        sides: sides,
+        lineStyle: teamSelection === 1 ? 'solid' : 'dashed'
+      }];
+      setLineChartData(teamData);
     }
-
-    setLineChartData(newSeriesData);
   }, [teamSelection, economyData]);
 
   // Handle file upload

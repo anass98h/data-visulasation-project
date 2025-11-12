@@ -7,9 +7,11 @@ interface DataSeries {
   x: number[];
   y: number[];
   label: string; // e.g., "Vitality", "The MongolZ"
-  color: string; // e.g., "#3b82f6", "#ef4444"
+  color: string; // e.g., "#3b82f6", "#ef4444" (reference color)
   teamId?: number; // Team identifier (1 or 2)
   winners?: number[]; // Array of winner team IDs per round
+  sides?: string[]; // Array of "CT" or "T" per round
+  lineStyle?: 'solid' | 'dashed'; // Line style
 }
 
 interface LineChartProps {
@@ -19,6 +21,12 @@ interface LineChartProps {
   xLabel?: string;
   yLabel?: string;
 }
+
+// Side color constants for CT/T
+const SIDE_COLORS = {
+  CT: '#3b82f6',  // Blue
+  T: '#ef4444'    // Red
+} as const;
 
 const LineChart: React.FC<LineChartProps> = ({
   seriesData,
@@ -210,21 +218,93 @@ const LineChart: React.FC<LineChartProps> = ({
 
     // Loop through each series to draw line and data points
     seriesData.forEach((series, seriesIndex) => {
-      // Create line generator for current series
-      const currentLine = d3
-        .line<number>()
-        .x((d, i) => xScale(series.x[i]))
-        .y((d) => yScale(d))
-        .curve(d3.curveLinear);
+      // Determine if we need to split the line (if sides data exists)
+      const hasSideData = series.sides && series.sides.length > 0;
 
-      // Add the line path
-      svg
-        .append("path")
-        .datum(series.y)
-        .attr("fill", "none")
-        .attr("stroke", series.color)
-        .attr("stroke-width", 2.5)
-        .attr("d", currentLine);
+      if (!hasSideData) {
+        // Fallback: Render as before (single color line)
+        const currentLine = d3
+          .line<number>()
+          .x((d, i) => xScale(series.x[i]))
+          .y((d) => yScale(d))
+          .curve(d3.curveLinear);
+
+        svg
+          .append("path")
+          .datum(series.y)
+          .attr("fill", "none")
+          .attr("stroke", series.color)
+          .attr("stroke-width", 2.5)
+          .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+          .attr("d", currentLine);
+      } else {
+        // Render segmented line with side-based colors
+
+        // Find the halftime point (round 12 -> index where round > 12)
+        const halftimeIndex = series.x.findIndex(round => round > 12);
+
+        if (halftimeIndex === -1 || halftimeIndex === 0) {
+          // No halftime swap in data, render single segment
+          const lineGen = d3
+            .line<number>()
+            .x((d, i) => xScale(series.x[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          const sideColor = SIDE_COLORS[series.sides[0] as keyof typeof SIDE_COLORS] || series.color;
+
+          svg
+            .append("path")
+            .datum(series.y)
+            .attr("fill", "none")
+            .attr("stroke", sideColor)
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", lineGen);
+        } else {
+          // Render two segments: rounds 1-12 and 13+
+
+          // Segment 1: Rounds 1-12 (indices 0 to halftimeIndex-1, inclusive of halftimeIndex for continuity)
+          const segment1Data = series.y.slice(0, halftimeIndex);
+          const segment1X = series.x.slice(0, halftimeIndex);
+          const segment1Side = series.sides[0]; // First half side
+
+          const line1 = d3
+            .line<number>()
+            .x((d, i) => xScale(segment1X[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          svg
+            .append("path")
+            .datum(segment1Data)
+            .attr("fill", "none")
+            .attr("stroke", SIDE_COLORS[segment1Side as keyof typeof SIDE_COLORS])
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", line1);
+
+          // Segment 2: Rounds 13+ (from halftimeIndex-1 onwards for continuity)
+          const segment2Data = series.y.slice(halftimeIndex - 1);
+          const segment2X = series.x.slice(halftimeIndex - 1);
+          const segment2Side = series.sides[halftimeIndex]; // Second half side
+
+          const line2 = d3
+            .line<number>()
+            .x((d, i) => xScale(segment2X[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          svg
+            .append("path")
+            .datum(segment2Data)
+            .attr("fill", "none")
+            .attr("stroke", SIDE_COLORS[segment2Side as keyof typeof SIDE_COLORS])
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", line2);
+        }
+      }
 
       // Add data points
       const tooltip = d3
@@ -253,7 +333,13 @@ const LineChart: React.FC<LineChartProps> = ({
         .attr("cx", (d, i) => xScale(series.x[i]))
         .attr("cy", (d) => yScale(d))
         .attr("r", 4)
-        .attr("fill", series.color)
+        .attr("fill", (d, i) => {
+          // Use side-based color if sides data is available
+          if (hasSideData && series.sides && series.sides[i]) {
+            return SIDE_COLORS[series.sides[i] as keyof typeof SIDE_COLORS] || series.color;
+          }
+          return series.color;
+        })
         .attr("stroke", "#1f2937") // gray-800
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
@@ -299,29 +385,68 @@ const LineChart: React.FC<LineChartProps> = ({
     // Add axis styling
     svg.selectAll(".domain, .tick line").attr("stroke", "#4b5563"); // gray-600
 
-    // Add Legend (outside the loop, after all elements are drawn)
+    // Add Legend with dual colors showing side swap
     const legend = svg.append("g").attr("class", "legend");
 
     seriesData.forEach((series, index) => {
       const legendItem = legend
         .append("g")
-        .attr("transform", `translate(${width - 150}, ${index * 20})`); // Positioned top right
+        .attr("transform", `translate(${width - 200}, ${index * 30})`); // Positioned top right
 
-      // Legend color square
-      legendItem
-        .append("rect")
-        .attr("width", 10)
-        .attr("height", 10)
-        .attr("fill", series.color);
+      // Show both side colors if sides data exists
+      if (series.sides && series.sides.length > 0) {
+        const firstHalfSide = series.sides[0];
+        const secondHalfSide = series.sides[series.sides.length - 1];
 
-      // Legend label
-      legendItem
-        .append("text")
-        .attr("x", 15)
-        .attr("y", 9)
-        .attr("fill", "#ffffff")
-        .attr("font-size", "12px")
-        .text(series.label);
+        // First color square (first half)
+        legendItem
+          .append("rect")
+          .attr("width", 10)
+          .attr("height", 10)
+          .attr("fill", SIDE_COLORS[firstHalfSide as keyof typeof SIDE_COLORS]);
+
+        // Arrow/connector
+        legendItem
+          .append("text")
+          .attr("x", 12)
+          .attr("y", 9)
+          .attr("fill", "#9ca3af")
+          .attr("font-size", "10px")
+          .text("→");
+
+        // Second color square (second half)
+        legendItem
+          .append("rect")
+          .attr("x", 22)
+          .attr("width", 10)
+          .attr("height", 10)
+          .attr("fill", SIDE_COLORS[secondHalfSide as keyof typeof SIDE_COLORS]);
+
+        // Team label with line style indicator
+        const lineStyleText = series.lineStyle === 'dashed' ? ' (- -)' : ' (—)';
+        legendItem
+          .append("text")
+          .attr("x", 37)
+          .attr("y", 9)
+          .attr("fill", "#ffffff")
+          .attr("font-size", "12px")
+          .text(series.label + lineStyleText);
+      } else {
+        // Fallback: single color (original logic)
+        legendItem
+          .append("rect")
+          .attr("width", 10)
+          .attr("height", 10)
+          .attr("fill", series.color);
+
+        legendItem
+          .append("text")
+          .attr("x", 15)
+          .attr("y", 9)
+          .attr("fill", "#ffffff")
+          .attr("font-size", "12px")
+          .text(series.label);
+      }
     });
   }, [seriesData, xLabel, yLabel]);
 
