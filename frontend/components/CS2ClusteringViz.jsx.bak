@@ -111,12 +111,11 @@ const CS2Dashboard = () => {
         // Convert initialTeamMapping format to the format expected by calculateEconomy
         const teamNamesForCalc = {
           1: initialTeamMapping.CT, // Team 1 started as CT
-          2: initialTeamMapping.T, // Team 2 started as T
+          2: initialTeamMapping.T    // Team 2 started as T
         };
-        const calculatedEconomy = distributionHelpers.calculateEconomy(
-          [matchData],
-          teamNamesForCalc
-        );
+        const calculatedEconomy = distributionHelpers.calculateEconomy([
+          matchData,
+        ], teamNamesForCalc);
         console.log("Calculated economy:", calculatedEconomy);
         setEconomyData(calculatedEconomy);
       } catch (error) {
@@ -174,30 +173,14 @@ const CS2Dashboard = () => {
     };
 
     if (teamSelection === 1) {
-      const team1Series = extractTeamSeries(
-        1,
-        economyData.teams[1].name,
-        "#2563eb"
-      );
+      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#2563eb");
       if (team1Series) newSeriesData.push(team1Series);
     } else if (teamSelection === 2) {
-      const team2Series = extractTeamSeries(
-        2,
-        economyData.teams[2].name,
-        "#dc2626"
-      );
+      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#dc2626");
       if (team2Series) newSeriesData.push(team2Series);
     } else if (teamSelection === 0) {
-      const team1Series = extractTeamSeries(
-        1,
-        economyData.teams[1].name,
-        "#3b82f6"
-      );
-      const team2Series = extractTeamSeries(
-        2,
-        economyData.teams[2].name,
-        "#ef4444"
-      );
+      const team1Series = extractTeamSeries(1, economyData.teams[1].name, "#3b82f6");
+      const team2Series = extractTeamSeries(2, economyData.teams[2].name, "#ef4444");
       if (team1Series) newSeriesData.push(team1Series);
       if (team2Series) newSeriesData.push(team2Series);
     }
@@ -274,7 +257,7 @@ const CS2Dashboard = () => {
     if (!initialTeamMapping.CT || !initialTeamMapping.T) return {};
     return {
       1: initialTeamMapping.CT, // Team 1 started as CT
-      2: initialTeamMapping.T, // Team 2 started as T
+      2: initialTeamMapping.T    // Team 2 started as T
     };
   }, [initialTeamMapping]);
 
@@ -348,14 +331,14 @@ const CS2Dashboard = () => {
   let chartDescription = "Track economy performance across game rounds";
 
   if (teamSelection === 1) {
-    chartTitle = `${teamNames[1]} Economy Over Rounds`;
-    chartDescription = `Track ${teamNames[1]} economy performance across game rounds`;
+    chartTitle = `${teamNames[1] || 'Team 1'} Economy Over Rounds`;
+    chartDescription = `Track ${teamNames[1] || 'Team 1'} economy performance across game rounds`;
   } else if (teamSelection === 2) {
-    chartTitle = `${teamNames[2]} Economy Over Rounds`;
-    chartDescription = `Track ${teamNames[2]} economy performance across game rounds`;
+    chartTitle = `${teamNames[2] || 'Team 2'} Economy Over Rounds`;
+    chartDescription = `Track ${teamNames[2] || 'Team 2'} economy performance across game rounds`;
   } else if (teamSelection === 0) {
-    chartTitle = `${teamNames[1]} vs ${teamNames[2]} Economy Over Rounds`;
-    chartDescription = `Compare ${teamNames[1]} and ${teamNames[2]} economy performance across game rounds`;
+    chartTitle = `${teamNames[1] || 'Team 1'} vs ${teamNames[2] || 'Team 2'} Economy Over Rounds`;
+    chartDescription = `Compare ${teamNames[1] || 'Team 1'} and ${teamNames[2] || 'Team 2'} economy performance across game rounds`;
   }
 
   // Display string for the teams uses the INITIAL static map for context
@@ -363,6 +346,10 @@ const CS2Dashboard = () => {
     initialTeamMapping.CT && initialTeamMapping.T
       ? `${initialTeamMapping.CT} (Start CT) vs ${initialTeamMapping.T} (Start T)`
       : `${stats.mapName} Match`;
+
+  // Determine which team name corresponds to the CT score and T score for Round Summary display
+  const teamA_Name = initialTeamMapping.CT || "CT Team";
+  const teamB_Name = initialTeamMapping.T || "T Team";
 
   // Find the total rounds played (used for score progression calculation)
   const totalRoundsPlayed = matchData.rounds?.length || 0;
@@ -379,6 +366,12 @@ const CS2Dashboard = () => {
               <p className="text-gray-400 mt-1">
                 {stats.totalRounds} rounds on {teamDisplay}
               </p>
+              {heatmapData && (
+                <p className="text-xs text-green-400 mt-1">
+                  ✓ Heatmap loaded: CT ({heatmapData.heatmapData?.ct?.samples})
+                  | T ({heatmapData.heatmapData?.t?.samples}) samples
+                </p>
+              )}
             </div>
             <div className="flex items-center gap-4">
               <div className="text-right">
@@ -488,6 +481,169 @@ const CS2Dashboard = () => {
             </div>
           </div>
         )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700 flex flex-col h-full">
+            <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+              <Clock className="w-6 h-6" />
+              Round Timeline & Score Progress
+            </h3>
+
+            <div className="flex-1 overflow-x-auto overflow-y-hidden h-[400px] border border-gray-700 p-2 rounded-lg">
+              <div className="flex space-x-2 h-full">
+                {matchData.rounds?.map((round, idx) => {
+                  // Determine winner
+                  const isCTWin = round.winnerSide === "CT";
+                  const colorClass = isCTWin
+                    ? "bg-blue-800 hover:bg-blue-900"
+                    : "bg-red-800 hover:bg-red-900";
+                  const sideText = isCTWin ? "CT" : "T";
+                  const winnerName =
+                    getCurrentTeamsForRound(round.roundNum)[round.winnerSide] ||
+                    sideText;
+
+                  // Using a fixed height for visual consistency here
+                  const heightStyle = { height: "100%", minWidth: "80px" };
+
+                  return (
+                    <div
+                      key={idx}
+                      style={heightStyle}
+                      className={`flex-shrink-0 flex flex-col justify-between items-center p-2 rounded-md transition-colors shadow-md cursor-pointer ${colorClass}`}
+                      onClick={() => setCurrentRoundContext(round.roundNum)}
+                    >
+                      <span className="text-xs font-semibold **text-white**">
+                        R {round.roundNum}
+                      </span>
+
+                      <div className="text-center">
+                        <div className="text-xl font-bold **text-white**">
+                          {round.ctScore} - {round.tScore}
+                        </div>
+
+                        <span className="text-xs **text-white**">
+                          {winnerName} Win ({sideText})
+                        </span>
+                      </div>
+
+                      <span className="text-xs **text-white** opacity-90">
+                        {round.reason || "Killed"}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* Additional Info (Column 2: Two Stacked Cards) */}
+          <div className="space-y-4 h-full">
+            {" "}
+            {/* Match Info */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                <Target className="w-6 h-6" />
+                Match Information
+              </h3>
+              <div className="space-y-3">
+                {/* FINAL SCORE (Static) */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Final Score</span>
+                  <span className="font-semibold text-lg">
+                    {finalScoreCT} - {finalScoreT}
+                  </span>
+                </div>
+
+                {/* MATCH WINNER (Static) */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Match Winner</span>
+                  <span
+                    className={`font-bold text-lg ${
+                      finalScoreCT > finalScoreT
+                        ? "text-blue-400"
+                        : finalScoreT > finalScoreCT
+                        ? "text-red-400"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {overallWinnerName}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Map</span>
+                  <span className="font-semibold">{stats.mapName}</span>
+                </div>
+
+                {/* 💥 FIX: Removed round-specific dynamic values. Now showing STATIC team names */}
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Start CT Team</span>
+                  <span className="font-semibold text-blue-400">
+                    {initialTeamMapping.CT || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Start T Team</span>
+                  <span className="font-semibold text-red-400">
+                    {initialTeamMapping.T || "N/A"}
+                  </span>
+                </div>
+
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Server Name</span>
+                  <span className="font-semibold">
+                    {matchData.header?.serverName || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Network Protocol</span>
+                  <span className="font-semibold">
+                    {matchData.header?.networkProtocol || "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400">Client Name</span>
+                  <span className="font-semibold">
+                    {matchData.header?.clientName || "N/A"}
+                  </span>
+                </div>
+              </div>
+            </div>
+            {/* Statistics */}
+            <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+              <h3 className="font-bold text-xl mb-4 flex items-center gap-2">
+                <TrendingUp className="w-6 h-6" />
+                Match Statistics
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Total Damage Events</span>
+                  <span className="font-semibold">
+                    {matchData.damages?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Weapon Fires</span>
+                  <span className="font-semibold">
+                    {matchData.weaponFires?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-700">
+                  <span className="text-gray-400">Flash Events</span>
+                  <span className="font-semibold">
+                    {matchData.flashes?.length || 0}
+                  </span>
+                </div>
+                <div className="flex justify-between py-2">
+                  <span className="text-gray-400">Grenade Throws</span>
+                  <span className="font-semibold">
+                    {matchData.grenades?.length || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
