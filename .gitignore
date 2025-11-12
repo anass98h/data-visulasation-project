@@ -47,3 +47,4 @@ utils/venv/
 
 .local/
 .venv/
+.docs/
