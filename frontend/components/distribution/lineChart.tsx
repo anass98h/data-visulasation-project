@@ -1,15 +1,17 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 import * as d3 from "d3";
 
 interface DataSeries {
   x: number[];
   y: number[];
   label: string; // e.g., "Vitality", "The MongolZ"
-  color: string; // e.g., "#3b82f6", "#ef4444"
+  color: string; // e.g., "#3b82f6", "#ef4444" (reference color)
   teamId?: number; // Team identifier (1 or 2)
   winners?: number[]; // Array of winner team IDs per round
+  sides?: string[]; // Array of "CT" or "T" per round
+  lineStyle?: 'solid' | 'dashed'; // Line style
 }
 
 interface LineChartProps {
@@ -20,6 +22,12 @@ interface LineChartProps {
   yLabel?: string;
 }
 
+// Side color constants for CT/T
+const SIDE_COLORS = {
+  CT: '#3b82f6',  // Blue
+  T: '#ef4444'    // Red
+} as const;
+
 const LineChart: React.FC<LineChartProps> = ({
   seriesData,
   title = "Economy Over Rounds",
@@ -29,6 +37,35 @@ const LineChart: React.FC<LineChartProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Track which teams are active (both active by default)
+  const [activeTeams, setActiveTeams] = useState<Set<number>>(new Set([1, 2]));
+
+  // D3-based team filtering function (memoized)
+  const updateTeamVisibility = useCallback((activeTeamsSet: Set<number>) => {
+    if (!svgRef.current) return;
+
+    const svg = d3.select(svgRef.current);
+    const duration = 500;
+    const easing = d3.easeCubicInOut;
+
+    // Fade team 1 elements
+    svg.selectAll(".team-1")
+      .transition()
+      .duration(duration)
+      .ease(easing)
+      .style("opacity", activeTeamsSet.has(1) ? 1 : 0)
+      .style("pointer-events", activeTeamsSet.has(1) ? "auto" : "none");
+
+    // Fade team 2 elements
+    svg.selectAll(".team-2")
+      .transition()
+      .duration(duration)
+      .ease(easing)
+      .style("opacity", activeTeamsSet.has(2) ? 1 : 0)
+      .style("pointer-events", activeTeamsSet.has(2) ? "auto" : "none");
+  }, []);
+
 
   useEffect(() => {
     if (
@@ -76,37 +113,14 @@ const LineChart: React.FC<LineChartProps> = ({
       .domain([0, (d3.max(allY) || 0) * 1.1]) // Max across all Y data
       .range([height, 0]);
 
-    // Add X axis
-    // Create tick values dynamically based on number of rounds (using the first series' X data)
+    // Add X axis - Show all rounds
     const firstSeriesX = seriesData[0].x;
-    const numRounds = firstSeriesX.length;
-    let tickValues: number[] = [];
-
-    if (numRounds <= 10) {
-      // Show all rounds if 10 or fewer
-      tickValues = firstSeriesX;
-    } else if (numRounds <= 20) {
-      // Show every 2nd round, plus first and last
-      tickValues = firstSeriesX.filter(
-        (val, i) => i === 0 || i === numRounds - 1 || val % 2 === 1
-      );
-    } else if (numRounds <= 30) {
-      // Show every 3rd round, plus first and last
-      tickValues = firstSeriesX.filter(
-        (val, i) => i === 0 || i === numRounds - 1 || val % 3 === 0
-      );
-    } else {
-      // Show every 5th round, plus first and last
-      tickValues = firstSeriesX.filter(
-        (val, i) => i === 0 || i === numRounds - 1 || val % 5 === 0
-      );
-    }
 
     svg
       .append("g")
       .attr("transform", `translate(0,${height})`)
       .call(
-        d3.axisBottom(xScale).tickValues(tickValues).tickFormat(d3.format("d"))
+        d3.axisBottom(xScale).tickValues(firstSeriesX).tickFormat(d3.format("d"))
       )
       .selectAll("text")
       .attr("fill", "#9ca3af"); // gray-400
@@ -210,21 +224,97 @@ const LineChart: React.FC<LineChartProps> = ({
 
     // Loop through each series to draw line and data points
     seriesData.forEach((series, seriesIndex) => {
-      // Create line generator for current series
-      const currentLine = d3
-        .line<number>()
-        .x((d, i) => xScale(series.x[i]))
-        .y((d) => yScale(d))
-        .curve(d3.curveLinear);
+      // Determine if we need to split the line (if sides data exists)
+      const hasSideData = series.sides && series.sides.length > 0;
 
-      // Add the line path
-      svg
-        .append("path")
-        .datum(series.y)
-        .attr("fill", "none")
-        .attr("stroke", series.color)
-        .attr("stroke-width", 2.5)
-        .attr("d", currentLine);
+      if (!hasSideData) {
+        // Fallback: Render as before (single color line)
+        const currentLine = d3
+          .line<number>()
+          .x((d, i) => xScale(series.x[i]))
+          .y((d) => yScale(d))
+          .curve(d3.curveLinear);
+
+        svg
+          .append("path")
+          .datum(series.y)
+          .attr("class", `line-path series-${seriesIndex} team-${series.teamId}`)
+          .attr("fill", "none")
+          .attr("stroke", series.color)
+          .attr("stroke-width", 2.5)
+          .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+          .attr("d", currentLine);
+      } else {
+        // Render segmented line with side-based colors
+
+        // Find the halftime point (round 12 -> index where round > 12)
+        const halftimeIndex = series.x.findIndex(round => round > 12);
+
+        if (halftimeIndex === -1 || halftimeIndex === 0) {
+          // No halftime swap in data, render single segment
+          const lineGen = d3
+            .line<number>()
+            .x((d, i) => xScale(series.x[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          const sideColor = SIDE_COLORS[series.sides[0] as keyof typeof SIDE_COLORS] || series.color;
+
+          svg
+            .append("path")
+            .datum(series.y)
+            .attr("class", `line-path series-${seriesIndex} team-${series.teamId}`)
+            .attr("fill", "none")
+            .attr("stroke", sideColor)
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", lineGen);
+        } else {
+          // Render two segments: rounds 1-12 and 13+
+
+          // Segment 1: Rounds 1-12 (indices 0 to halftimeIndex-1, inclusive of halftimeIndex for continuity)
+          const segment1Data = series.y.slice(0, halftimeIndex);
+          const segment1X = series.x.slice(0, halftimeIndex);
+          const segment1Side = series.sides[0]; // First half side
+
+          const line1 = d3
+            .line<number>()
+            .x((d, i) => xScale(segment1X[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          svg
+            .append("path")
+            .datum(segment1Data)
+            .attr("class", `line-path series-${seriesIndex} team-${series.teamId}`)
+            .attr("fill", "none")
+            .attr("stroke", SIDE_COLORS[segment1Side as keyof typeof SIDE_COLORS])
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", line1);
+
+          // Segment 2: Rounds 13+ (from halftimeIndex-1 onwards for continuity)
+          const segment2Data = series.y.slice(halftimeIndex - 1);
+          const segment2X = series.x.slice(halftimeIndex - 1);
+          const segment2Side = series.sides[halftimeIndex]; // Second half side
+
+          const line2 = d3
+            .line<number>()
+            .x((d, i) => xScale(segment2X[i]))
+            .y((d) => yScale(d))
+            .curve(d3.curveLinear);
+
+          svg
+            .append("path")
+            .datum(segment2Data)
+            .attr("class", `line-path series-${seriesIndex} team-${series.teamId}`)
+            .attr("fill", "none")
+            .attr("stroke", SIDE_COLORS[segment2Side as keyof typeof SIDE_COLORS])
+            .attr("stroke-width", 2.5)
+            .attr("stroke-dasharray", series.lineStyle === 'dashed' ? '5,5' : null)
+            .attr("d", line2);
+        }
+      }
 
       // Add data points
       const tooltip = d3
@@ -249,11 +339,17 @@ const LineChart: React.FC<LineChartProps> = ({
         .selectAll(`.dot-${seriesIndex}`)
         .data(series.y)
         .join("circle")
-        .attr("class", `dot dot-${seriesIndex}`)
+        .attr("class", `dot series-${seriesIndex} team-${series.teamId}`)
         .attr("cx", (d, i) => xScale(series.x[i]))
         .attr("cy", (d) => yScale(d))
         .attr("r", 4)
-        .attr("fill", series.color)
+        .attr("fill", (d, i) => {
+          // Use side-based color if sides data is available
+          if (hasSideData && series.sides && series.sides[i]) {
+            return SIDE_COLORS[series.sides[i] as keyof typeof SIDE_COLORS] || series.color;
+          }
+          return series.color;
+        })
         .attr("stroke", "#1f2937") // gray-800
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
@@ -285,6 +381,7 @@ const LineChart: React.FC<LineChartProps> = ({
           if (series.winners![i] === series.teamId) {
             svg
               .append("text")
+              .attr("class", `trophy series-${seriesIndex} team-${series.teamId}`)
               .attr("x", xScale(series.x[i]))
               .attr("y", yScale(d) - 15) // Position above the point
               .text("🏆")
@@ -298,32 +395,12 @@ const LineChart: React.FC<LineChartProps> = ({
 
     // Add axis styling
     svg.selectAll(".domain, .tick line").attr("stroke", "#4b5563"); // gray-600
-
-    // Add Legend (outside the loop, after all elements are drawn)
-    const legend = svg.append("g").attr("class", "legend");
-
-    seriesData.forEach((series, index) => {
-      const legendItem = legend
-        .append("g")
-        .attr("transform", `translate(${width - 150}, ${index * 20})`); // Positioned top right
-
-      // Legend color square
-      legendItem
-        .append("rect")
-        .attr("width", 10)
-        .attr("height", 10)
-        .attr("fill", series.color);
-
-      // Legend label
-      legendItem
-        .append("text")
-        .attr("x", 15)
-        .attr("y", 9)
-        .attr("fill", "#ffffff")
-        .attr("font-size", "12px")
-        .text(series.label);
-    });
   }, [seriesData, xLabel, yLabel]);
+
+  // Separate effect for updating visibility when activeTeams changes
+  useEffect(() => {
+    updateTeamVisibility(activeTeams);
+  }, [activeTeams, updateTeamVisibility]);
 
   if (!seriesData || seriesData.length === 0) {
     return (
@@ -339,12 +416,62 @@ const LineChart: React.FC<LineChartProps> = ({
     );
   }
 
+  const toggleTeam = (teamId: number) => {
+    const newActive = new Set(activeTeams);
+    if (newActive.has(teamId)) {
+      // Don't allow deactivating if it's the last active team
+      if (newActive.size > 1) {
+        newActive.delete(teamId);
+      }
+    } else {
+      newActive.add(teamId);
+    }
+    setActiveTeams(newActive);
+    updateTeamVisibility(newActive);
+  };
+
   return (
     <div className="bg-gray-700 rounded-lg border border-gray-600 p-6">
-      <div className="mb-4 text-center">
-        <h3 className="text-lg font-semibold text-white">{title}</h3>
-        <p className="text-sm text-gray-400">{description}</p>
+      {/* Interactive Legend - Above Chart */}
+      <div className="flex items-center justify-center gap-6 mb-6">
+        {seriesData.map((series) => {
+          const isActive = activeTeams.has(series.teamId || 0);
+
+          return (
+            <button
+              key={series.teamId}
+              onClick={() => toggleTeam(series.teamId || 0)}
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-300 ${
+                isActive
+                  ? 'bg-gray-600 hover:bg-gray-500'
+                  : 'bg-gray-800 hover:bg-gray-700 opacity-50'
+              }`}
+            >
+              {/* Line Preview */}
+              <svg width="30" height="12" className="flex-shrink-0">
+                <line
+                  x1="0"
+                  y1="6"
+                  x2="30"
+                  y2="6"
+                  stroke={isActive ? '#ffffff' : '#6b7280'}
+                  strokeWidth="2.5"
+                  strokeDasharray={series.lineStyle === 'dashed' ? '4,3' : undefined}
+                />
+              </svg>
+
+              <span
+                className="text-sm font-semibold"
+                style={{ color: isActive ? '#ffffff' : '#9ca3af' }}
+              >
+                {series.label}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Chart Container */}
       <div ref={containerRef}>
         <svg ref={svgRef} className="w-full" />
       </div>

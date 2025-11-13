@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
-import { TeamSwitch } from "@/components/distribution/teamSwitch";
 import { MatchDropdown } from "@/components/distribution/matchDropdown";
 import LineChart from "@/components/distribution/lineChart";
 import Economy from "@/components/distribution/economy";
@@ -13,7 +12,6 @@ const CS2Dashboard = () => {
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null); // NEW: team+side aggregated
   const [isLoading, setIsLoading] = useState(true);
-  const [teamSelection, setTeamSelection] = useState(0); // Default set to 0 (both teams)
   const [matchSelection, setMatchSelection] = useState("match1");
   const [economyData, setEconomyData] = useState({});
   const [lineChartData, setLineChartData] = useState([]);
@@ -125,7 +123,7 @@ const CS2Dashboard = () => {
     }
   }, [matchData, initialTeamMapping]);
 
-  // Corrected data extraction to handle object-based rounds with new structure
+  // Extract line chart data - always load both teams
   useEffect(() => {
     if (!economyData.teams || !economyData.teams[1] || !economyData.teams[2]) {
       setLineChartData([]);
@@ -204,6 +202,10 @@ const CS2Dashboard = () => {
 
     setLineChartData(newSeriesData);
   }, [teamSelection, economyData]);
+    // Always load both teams data
+    const result = distributionHelpers.extractXYForBothTeams(economyData, 'economy');
+    setLineChartData(result);
+  }, [economyData]);
 
   // Handle file upload
   const handleFileUpload = async (event) => {
@@ -343,20 +345,6 @@ const CS2Dashboard = () => {
     );
   }
 
-  // Determine chart title based on selection
-  let chartTitle = "Economy Over Rounds";
-  let chartDescription = "Track economy performance across game rounds";
-
-  if (teamSelection === 1) {
-    chartTitle = `${teamNames[1]} Economy Over Rounds`;
-    chartDescription = `Track ${teamNames[1]} economy performance across game rounds`;
-  } else if (teamSelection === 2) {
-    chartTitle = `${teamNames[2]} Economy Over Rounds`;
-    chartDescription = `Track ${teamNames[2]} economy performance across game rounds`;
-  } else if (teamSelection === 0) {
-    chartTitle = `${teamNames[1]} vs ${teamNames[2]} Economy Over Rounds`;
-    chartDescription = `Compare ${teamNames[1]} and ${teamNames[2]} economy performance across game rounds`;
-  }
 
   // Display string for the teams uses the INITIAL static map for context
   const teamDisplay =
@@ -471,21 +459,10 @@ const CS2Dashboard = () => {
               <Economy economyData={economyData} teamNames={teamNames} />
             </div>
 
-            {/* Line Chart: Passed seriesData instead of data */}
+            {/* Line Chart with Interactive Legend */}
             <LineChart
               seriesData={lineChartData}
-              title={chartTitle}
-              description={chartDescription}
             />
-
-            {/* Team Selection Switch (below chart) */}
-            <div className="mt-6">
-              <TeamSwitch
-                value={teamSelection}
-                onValueChange={setTeamSelection}
-                teamNames={teamNames}
-              />
-            </div>
           </div>
         )}
       </div>

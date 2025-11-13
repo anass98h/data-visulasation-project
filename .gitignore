@@ -46,3 +46,5 @@ utils/match_data.json
 utils/venv/
 
 .local/
+.venv/
+.docs/

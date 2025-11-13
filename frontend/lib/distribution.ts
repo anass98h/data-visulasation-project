@@ -193,24 +193,40 @@ export function extractXYForBothTeams(dataset: any, yFeatureName: string): any[]
 
     // Extract data for Team 1
     const team1Data = extractXY(dataset, yFeatureName, undefined, 1);
+
+    // Calculate sides for Team 1 (starts as CT, swaps to T at round 13)
+    const team1Sides: string[] = team1Data.x.map((roundNum: number) =>
+        roundNum <= 12 ? 'CT' : 'T'
+    );
+
     seriesData.push({
         x: team1Data.x,
         y: team1Data.y,
         label: dataset.teams[1].name,
-        color: '#3b82f6', // blue
+        color: '#3b82f6', // blue (reference color)
         teamId: 1,
-        winners: winners
+        winners: winners,
+        sides: team1Sides,
+        lineStyle: 'solid'
     });
 
     // Extract data for Team 2
     const team2Data = extractXY(dataset, yFeatureName, undefined, 2);
+
+    // Calculate sides for Team 2 (starts as T, swaps to CT at round 13)
+    const team2Sides: string[] = team2Data.x.map((roundNum: number) =>
+        roundNum <= 12 ? 'T' : 'CT'
+    );
+
     seriesData.push({
         x: team2Data.x,
         y: team2Data.y,
         label: dataset.teams[2].name,
-        color: '#ef4444', // red
+        color: '#ef4444', // red (reference color)
         teamId: 2,
-        winners: winners
+        winners: winners,
+        sides: team2Sides,
+        lineStyle: 'dashed'
     });
 
     return seriesData;
