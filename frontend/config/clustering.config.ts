@@ -2,6 +2,22 @@
 
 export const DEFAULT_TIMEPOINTS = [15, 30, 45, 60, 75] as const;
 
+// Default parameters for t-SNE
+export const DEFAULT_TSNE_PARAMS = {
+  perplexity: 10,
+  learningRate: 200,
+  iterations: 1500,
+  earlyExaggeration: 4.0,
+} as const;
+
+// Default parameters for UMAP
+export const DEFAULT_UMAP_PARAMS = {
+  nNeighbors: 15,
+  minDist: 0.1,
+  nEpochs: 400,
+  nComponents: 2,
+} as const;
+
 export const MAP_CONFIG = {
   de_ancient: {
     minX: -2953,
