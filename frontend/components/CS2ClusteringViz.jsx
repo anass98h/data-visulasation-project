@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
-import { MatchDropdown } from "@/components/distribution/matchDropdown";
 import LineChart from "@/components/distribution/lineChart";
 import Economy from "@/components/distribution/economy";
 import { DemoSelector } from "@/components/DemoSelector";
@@ -539,7 +538,7 @@ const CS2Dashboard = () => {
                     <DollarSign className="w-5 h-5" />
                     Economy Distribution
                   </h3>
-                  <div className="flex items-center gap-2">
+                  {/* <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-gray-400">
                       Match:
                     </span>
@@ -547,7 +546,7 @@ const CS2Dashboard = () => {
                       value={matchSelection}
                       onValueChange={setMatchSelection}
                     />
-                  </div>
+                  </div> */}
                 </div>
                 {/* Team Side Legend */}
                 <div className="flex items-center gap-4 text-xs font-medium">
