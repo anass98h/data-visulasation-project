@@ -82,6 +82,9 @@ export function DemoSelector({
     }
   };
 
+  // Get the selected demo's name for display
+  const selectedDemo = demos.find((demo) => demo.demo_id === selectedDemoId);
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-gray-400 h-10">
@@ -118,7 +121,15 @@ export function DemoSelector({
     <div className="flex gap-2 items-center w-full">
       <Select value={selectedDemoId} onValueChange={onDemoSelect}>
         <SelectTrigger className="flex-1 h-10 bg-gray-700 border-gray-600 text-white hover:bg-gray-600">
-          <SelectValue placeholder="Select a demo" />
+          <SelectValue placeholder="Select a demo">
+            {selectedDemo ? (
+              <span className="text-sm font-medium truncate">
+                {selectedDemo.demo_name}
+              </span>
+            ) : (
+              "Select a demo"
+            )}
+          </SelectValue>
         </SelectTrigger>
         <SelectContent className="bg-gray-800 border-gray-700 text-white">
           {demos.map((demo) => (
@@ -129,7 +140,7 @@ export function DemoSelector({
             >
               <div className="flex flex-col py-1">
                 <span className="font-medium text-white text-sm">
-                  {demo.map_name}
+                  {demo.demo_name}
                 </span>
                 <span className="text-xs text-gray-400">
                   {new Date(demo.date).toLocaleDateString()}{" "}

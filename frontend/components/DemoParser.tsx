@@ -66,7 +66,7 @@ const createWorkerCode = () => {
     loadWasm();
 
     self.onmessage = async (e) => {
-      const { type, buffer, options } = e.data;
+      const { type, buffer, options, fileName } = e.data;
 
       if (type === 'parse') {
         if (!wasmReady) {
@@ -99,7 +99,8 @@ const createWorkerCode = () => {
               } else {
                 self.postMessage({
                   type: 'result',
-                  data: data
+                  data: data,
+                  fileName: fileName
                 });
               }
             } catch (err) {
@@ -139,7 +140,13 @@ export default function DemoParser() {
     const wasmWorker = new Worker(workerUrl);
 
     wasmWorker.onmessage = (e) => {
-      const { type, data, error: workerError, message } = e.data;
+      const {
+        type,
+        data,
+        error: workerError,
+        message,
+        fileName: workerFileName,
+      } = e.data;
 
       if (type === "ready") {
         setWasmReady(true);
@@ -147,6 +154,10 @@ export default function DemoParser() {
         console.log("Parse result received:", data);
         console.log("Header:", data.header);
         console.log("Map name:", data.header?.mapName);
+        console.log("Filename from worker:", workerFileName);
+        if (workerFileName) {
+          setFileName(workerFileName);
+        }
         setParseResult(data);
         setLoading(false);
       } else if (type === "error") {
@@ -187,6 +198,7 @@ export default function DemoParser() {
         type: "parse",
         buffer: buffer,
         options: { tickInterval: 10, removeZ: true },
+        fileName: file.name,
       });
     } catch (err) {
       console.error("File read error:", err);
@@ -213,6 +225,11 @@ export default function DemoParser() {
         player_count: parseResult.players?.length || 0,
         round_count: parseResult.rounds?.length || 0,
       };
+
+      console.log(
+        "Saving demo to backend with metadata Demo Parser:",
+        metadata
+      );
 
       const response = await fetch(`${API_URL}/demo/save`, {
         method: "POST",

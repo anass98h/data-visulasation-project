@@ -26,6 +26,7 @@ const CS2Dashboard = () => {
   const [parsing, setParsing] = useState(false);
   const [fileName, setFileName] = useState("");
   const workerRef = useRef(null);
+  const fileNameRef = useRef(""); // Add ref to avoid closure issues
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -71,7 +72,7 @@ const CS2Dashboard = () => {
         loadWasm();
 
         self.onmessage = async (e) => {
-          const { type, buffer, options } = e.data;
+          const { type, buffer, options, fileName } = e.data;
           if (type === 'parse') {
             if (!wasmReady) {
               self.postMessage({ type: 'error', error: 'WASM not ready yet' });
@@ -85,7 +86,7 @@ const CS2Dashboard = () => {
                   if ('error' in data) {
                     self.postMessage({ type: 'error', error: data.error });
                   } else {
-                    self.postMessage({ type: 'result', data: data });
+                    self.postMessage({ type: 'result', data: data, fileName: fileName });
                   }
                 } catch (err) {
                   self.postMessage({ type: 'error', error: err.message });
@@ -111,10 +112,15 @@ const CS2Dashboard = () => {
         setWasmReady(true);
       } else if (type === "result") {
         try {
+          // Use workerFileName if available, otherwise fall back to ref
+          const demoFileName =
+            workerFileName || fileNameRef.current || "Unknown Demo";
+          console.log("Using demo name:", demoFileName);
+
           const metadata = {
             map_name: data.header?.mapName || "Unknown",
             date: new Date().toISOString(),
-            demo_name: workerFileName || fileName || "Unknown Demo",
+            demo_name: demoFileName,
             player_count: data.players?.length || 0,
             round_count: data.rounds?.length || 0,
           };
@@ -264,7 +270,9 @@ const CS2Dashboard = () => {
         return;
       }
 
+      console.log("Uploading and parsing demo file:", file.name);
       setFileName(file.name);
+      fileNameRef.current = file.name; // Also update the ref
       setParsing(true);
 
       try {
