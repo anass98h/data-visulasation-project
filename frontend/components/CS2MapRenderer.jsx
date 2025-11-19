@@ -572,7 +572,7 @@ const CS2MapRenderer = ({
             width={1024}
             height={1024}
             className="w-full h-full"
-            style={{ objectFit: "contain" }}
+            style={{ maxHeight: "500px", objectFit: "contain" }}
           />
         </div>
 
