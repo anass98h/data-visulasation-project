@@ -6,11 +6,17 @@ import { MAP_CONFIG } from "@/config/clustering.config";
 export interface FeatureBuildOptions {
   desiredPlayers?: number; // default 5
   economyWeight?: number; // 0..1, default 0.5
+  includeEconomy?: boolean; // default true
+  normalizePositions?: boolean; // default true
+  relativePositions?: boolean; // default false
 }
 
 const DEFAULTS: Required<FeatureBuildOptions> = {
   desiredPlayers: 5,
   economyWeight: 0.5,
+  includeEconomy: true,
+  normalizePositions: true,
+  relativePositions: false,
 };
 
 function normalizePos(mapName: string, x: number, y: number): { nx: number; ny: number } {
@@ -40,6 +46,9 @@ export function buildFeatureMatrix(
   const options = { ...DEFAULTS, ...(opts || {}) };
   const desired = options.desiredPlayers;
   const econWeight = options.economyWeight;
+  const includeEconomy = options.includeEconomy;
+  const normalizePositions = options.normalizePositions;
+  const relativePositions = options.relativePositions;
 
   // Group snapshots by round+team
   const groups = new Map<string, Snapshot[]>();
@@ -76,21 +85,35 @@ export function buildFeatureMatrix(
         continue;
       }
       const fixed = pad(snap.players, desired);
-      for (const p of fixed) {
-        const { nx, ny } = normalizePos(snap.mapName, p.x, p.y);
-        vec.push(nx, ny);
+      let transformed = fixed.map((p) => {
+        if (normalizePositions) {
+          return normalizePos(snap.mapName, p.x, p.y);
+        }
+        return { nx: p.x, ny: p.y };
+      });
+
+      if (relativePositions) {
+        const cx = transformed.reduce((s, p) => s + p.nx, 0) / transformed.length;
+        const cy = transformed.reduce((s, p) => s + p.ny, 0) / transformed.length;
+        transformed = transformed.map((p) => ({ nx: p.nx - cx, ny: p.ny - cy }));
+      }
+
+      for (const p of transformed) {
+        vec.push(p.nx, p.ny);
       }
     }
 
-    // economy: include both team economy and opponent economy
-    const example = snaps[0];
-    const ctEconomy = (example.economy.ctStart || 0) + (example.economy.ctEquip || 0);
-    const tEconomy = (example.economy.tStart || 0) + (example.economy.tEquip || 0);
-    // naive normalization to ~[0,1]
-    const econNorm = (v: number) => Math.min(1, Math.max(0, v / 20000));
-    const teamEconomy = team === "CT" ? econNorm(ctEconomy) : econNorm(tEconomy);
-    const oppEconomy = team === "CT" ? econNorm(tEconomy) : econNorm(ctEconomy);
-    vec.push(teamEconomy * econWeight, oppEconomy * econWeight);
+    if (includeEconomy) {
+      // economy: include both team economy and opponent economy
+      const example = snaps[0];
+      const ctEconomy = (example.economy.ctStart || 0) + (example.economy.ctEquip || 0);
+      const tEconomy = (example.economy.tStart || 0) + (example.economy.tEquip || 0);
+      // naive normalization to ~[0,1]
+      const econNorm = (v: number) => Math.min(1, Math.max(0, v / 20000));
+      const teamEconomy = team === "CT" ? econNorm(ctEconomy) : econNorm(tEconomy);
+      const oppEconomy = team === "CT" ? econNorm(tEconomy) : econNorm(ctEconomy);
+      vec.push(teamEconomy * econWeight, oppEconomy * econWeight);
+    }
 
     matrix.push(vec);
     rowsMeta.push({ roundNum, team });

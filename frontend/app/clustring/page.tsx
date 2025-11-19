@@ -32,6 +32,9 @@ export default function ClustringPage() {
   const [selectedSide, setSelectedSide] = useState<Team>("CT"); // CT or T
   const [timepoints, setTimepoints] = useState<number[]>([...DEFAULT_TIMEPOINTS]);
   const [economyWeight, setEconomyWeight] = useState<number>(0.5);
+  const [includeEconomy, setIncludeEconomy] = useState<boolean>(true);
+  const [normalizePositions, setNormalizePositions] = useState<boolean>(true);
+  const [relativePositions, setRelativePositions] = useState<boolean>(false);
   const [clusterMethod, setClusterMethod] = useState<"kmeans" | "dbscan">("kmeans");
   const [k, setK] = useState<number>(5);
   const [eps, setEps] = useState<number>(0.8);
@@ -130,7 +133,7 @@ export default function ClustringPage() {
     if (matchData && selectedTeamName) {
       handleAutoTune();
     }
-  }, [selectedTeamName, selectedSide, economyBucket]);
+  }, [selectedTeamName, selectedSide, economyBucket, includeEconomy, normalizePositions, relativePositions]);
 
   // Helper to get team name for a side in a specific round
   const getTeamNameForRound = (roundNum: number, side: Team): string | null => {
@@ -158,7 +161,18 @@ export default function ClustringPage() {
           return teamNameInRound === selectedTeamName && snap.team === selectedSide;
         })
       : allSnaps.filter(snap => snap.team === selectedSide);
-    const { matrix } = buildFeatureMatrixWithRegions(snaps, [...timepoints], { economyWeight, impute: true }, selectedSide);
+    const { matrix } = buildFeatureMatrixWithRegions(
+      snaps,
+      [...timepoints],
+      {
+        economyWeight,
+        impute: true,
+        includeEconomy,
+        normalizePositions,
+        relativePositions,
+      },
+      selectedSide
+    );
     
     const dataChar = {
       nSamples: matrix.length,
@@ -243,6 +257,12 @@ export default function ClustringPage() {
               }}
               economyWeight={economyWeight}
               onEconomyWeightChange={setEconomyWeight}
+              includeEconomy={includeEconomy}
+              onIncludeEconomyChange={setIncludeEconomy}
+              normalizePositions={normalizePositions}
+              onNormalizePositionsChange={setNormalizePositions}
+              relativePositions={relativePositions}
+              onRelativePositionsChange={setRelativePositions}
               reductionMethod={reductionMethod}
               onReductionMethodChange={setReductionMethod}
               perplexity={perplexity}
@@ -291,7 +311,18 @@ export default function ClustringPage() {
                 setPreviewTimepoint(tpSorted[0] ?? null);
 
                 // 2) Build feature matrix
-                const { matrix, rows } = buildFeatureMatrixWithRegions(snaps, [...timepoints], { economyWeight, impute: true }, selectedSide);
+                const { matrix, rows } = buildFeatureMatrixWithRegions(
+                  snaps,
+                  [...timepoints],
+                  {
+                    economyWeight,
+                    impute: true,
+                    includeEconomy,
+                    normalizePositions,
+                    relativePositions,
+                  },
+                  selectedSide
+                );
                 rowsRef.current = rows as any;
 
                 // 3) Run dimensionality reduction
