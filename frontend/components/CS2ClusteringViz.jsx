@@ -560,7 +560,7 @@ const CS2Dashboard = () => {
               </div>
 
               {/* Line Chart with Interactive Legend */}
-              <div className="flex-1 min-h-0">
+              <div className="flex-1 min-h-0 overflow-auto">
                 <LineChart seriesData={lineChartData} />
               </div>
             </div>
