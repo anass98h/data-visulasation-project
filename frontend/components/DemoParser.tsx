@@ -17,6 +17,7 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
+  Save,
 } from "lucide-react";
 
 interface ParseResult {
@@ -32,6 +33,8 @@ interface ParseResult {
   rounds: any[];
   players: any[];
 }
+
+const API_URL = "http://localhost:8000";
 
 // Create worker code as a string
 const createWorkerCode = () => {
@@ -123,10 +126,12 @@ export default function DemoParser() {
   const [error, setError] = useState<string | null>(null);
   const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [wasmError, setWasmError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [fileName, setFileName] = useState<string>("");
   const workerRef = useRef<Worker | null>(null);
 
   useEffect(() => {
-    // Create worker from blob
     const workerCode = createWorkerCode();
     const blob = new Blob([workerCode], { type: "application/javascript" });
     const workerUrl = URL.createObjectURL(blob);
@@ -169,9 +174,11 @@ export default function DemoParser() {
     if (!file || !workerRef.current) return;
 
     console.log("File selected:", file.name);
+    setFileName(file.name);
     setLoading(true);
     setError(null);
     setParseResult(null);
+    setSaveSuccess(false);
 
     try {
       const buffer = await file.arrayBuffer();
@@ -192,6 +199,53 @@ export default function DemoParser() {
     }
   };
 
+  const saveToBackend = async () => {
+    if (!parseResult) return;
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const metadata = {
+        map_name: parseResult.header?.mapName || "Unknown",
+        date: new Date().toISOString(),
+        demo_name: fileName,
+        player_count: parseResult.players?.length || 0,
+        round_count: parseResult.rounds?.length || 0,
+      };
+
+      const response = await fetch(`${API_URL}/demo/save`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          metadata: metadata,
+          data: parseResult,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to save demo");
+      }
+
+      const result = await response.json();
+      console.log("Demo saved:", result);
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (err) {
+      console.error("Save error:", err);
+      setError(
+        `Error saving to backend: ${
+          err instanceof Error ? err.message : "Unknown error"
+        }`
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const downloadJSON = () => {
     if (!parseResult) return;
 
@@ -207,10 +261,7 @@ export default function DemoParser() {
   };
 
   const downloadCSV = (
-    dataType: keyof Pick<
-      ParseResult,
-      "kills" | "damages" | "ticks" | "grenades"
-    >
+    dataType: "kills" | "damages" | "ticks" | "grenades"
   ) => {
     if (!parseResult || !parseResult[dataType]) return;
 
@@ -224,13 +275,7 @@ export default function DemoParser() {
         headers
           .map((header) => {
             const value = row[header];
-            if (
-              typeof value === "string" &&
-              (value.includes(",") || value.includes('"'))
-            ) {
-              return `"${value.replace(/"/g, '""')}"`;
-            }
-            return value;
+            return typeof value === "string" ? `"${value}"` : value;
           })
           .join(",")
       ),
@@ -289,7 +334,7 @@ export default function DemoParser() {
                     Click to upload or drag and drop
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    CS:GO demo file (.dem)
+                    CS:2 demo file (.dem)
                   </p>
                   <Input
                     type="file"
@@ -315,6 +360,15 @@ export default function DemoParser() {
               <Alert variant="destructive">
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
+
+            {saveSuccess && (
+              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800">
+                <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertDescription className="text-green-900 dark:text-green-100">
+                  Demo saved successfully to backend!
+                </AlertDescription>
               </Alert>
             )}
 
@@ -362,8 +416,23 @@ export default function DemoParser() {
 
                     <div className="space-y-3">
                       <Button
+                        onClick={saveToBackend}
+                        className="w-full"
+                        size="lg"
+                        disabled={saving}
+                      >
+                        {saving ? (
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                        ) : (
+                          <Save className="w-5 h-5 mr-2" />
+                        )}
+                        {saving ? "Saving..." : "Save to Dashboard"}
+                      </Button>
+
+                      <Button
                         onClick={downloadJSON}
                         className="w-full"
+                        variant="outline"
                         size="lg"
                       >
                         <Download className="w-5 h-5 mr-2" />

@@ -48,3 +48,6 @@ utils/venv/
 .local/
 .venv/
 .docs/
+
+backend/app/__pycache__
+backend/data

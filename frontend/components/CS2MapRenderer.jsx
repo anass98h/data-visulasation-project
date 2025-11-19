@@ -9,22 +9,98 @@ import {
 } from "lucide-react";
 
 const MAP_CONFIG = {
+  ar_baggage: {
+    minX: -1316,
+    maxX: -1316 + 1024 * 2.539062,
+    minY: 1288 - 1024 * 2.539062,
+    maxY: 1288,
+    radarImage: "/radar_images/ar_baggage_radar_psd.png",
+  },
+  ar_shoots: {
+    minX: -1368,
+    maxX: -1368 + 1024 * 2.6875,
+    minY: 1952 - 1024 * 2.6875,
+    maxY: 1952,
+    radarImage: "/radar_images/ar_shoots_radar_psd.png",
+  },
+  cs_italy: {
+    minX: -2647,
+    maxX: -2647 + 1024 * 4.6,
+    minY: 2592 - 1024 * 4.6,
+    maxY: 2592,
+    radarImage: "/radar_images/cs_italy_radar_psd.png",
+  },
+  cs_office: {
+    minX: -1838,
+    maxX: -1838 + 1024 * 4.1,
+    minY: 1858 - 1024 * 4.1,
+    maxY: 1858,
+    radarImage: "/radar_images/cs_office_radar_psd.png",
+  },
   de_ancient: {
     minX: -2953,
-    maxX: 2119,
-    minY: -2887,
-    maxY: 1983,
+    maxX: -2953 + 1024 * 5,
+    minY: 2164 - 1024 * 5,
+    maxY: 2164,
     radarImage: "/radar_images/de_ancient_radar_psd.png",
+  },
+  de_anubis: {
+    minX: -2796,
+    maxX: -2796 + 1024 * 5.22,
+    minY: 3328 - 1024 * 5.22,
+    maxY: 3328,
+    radarImage: "/radar_images/de_anubis_radar_psd.png",
+  },
+  de_dust2: {
+    minX: -2476,
+    maxX: -2476 + 1024 * 4.4,
+    minY: 3239 - 1024 * 4.4,
+    maxY: 3239,
+    radarImage: "/radar_images/de_dust2_radar_psd.png",
+  },
+  de_inferno: {
+    minX: -2087,
+    maxX: -2087 + 1024 * 4.9,
+    minY: 3870 - 1024 * 4.9,
+    maxY: 3870,
+    radarImage: "/radar_images/de_inferno_radar_psd.png",
   },
   de_mirage: {
     minX: -3230,
-    maxX: 1890,
-    minY: -3407,
+    maxX: -3230 + 1024 * 5.0,
+    minY: 1713 - 1024 * 5.0,
     maxY: 1713,
     radarImage: "/radar_images/de_mirage_radar_psd.png",
   },
+  de_nuke: {
+    minX: -3453,
+    maxX: -3453 + 1024 * 7,
+    minY: 2887 - 1024 * 7,
+    maxY: 2887,
+    radarImage: "/radar_images/de_nuke_radar_psd.png",
+  },
+  de_overpass: {
+    minX: -4831,
+    maxX: -4831 + 1024 * 5.2,
+    minY: 1781 - 1024 * 5.2,
+    maxY: 1781,
+    radarImage: "/radar_images/de_overpass_radar_psd.png",
+  },
+  de_train: {
+    minX: -2308,
+    maxX: -2308 + 1024 * 4.082077,
+    minY: 2078 - 1024 * 4.082077,
+    maxY: 2078,
+    radarImage: "/radar_images/de_train_radar_psd.png",
+  },
+  de_vertigo: {
+    minX: -3168,
+    maxX: -3168 + 1024 * 4.0,
+    minY: 1762 - 1024 * 4.0,
+    maxY: 1762,
+    radarImage: "/radar_images/de_vertigo_radar_psd.png",
+  },
 };
-
 // Custom Tailwind classes for muted team colors for better dashboard integration
 const TEAM_COLORS = {
   CT_MAIN: "#2563eb", // blue-700 equivalent
@@ -464,131 +540,19 @@ const CS2MapRenderer = ({
   }
 
   return (
-    <div className="w-full bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden">
-      <div className="flex flex-col">
-        <div className="p-4 border-b border-gray-700 bg-gray-800">
-          <h2 className="text-xl font-bold">CS2 Match Replay</h2>
-          <p className="text-sm text-gray-400">
-            {matchData.header?.mapName} - Tick Rate:{" "}
-            {matchData.header?.tickRate}
-          </p>
-        </div>
-
-        <div className="bg-gray-800 flex justify-center">
-          <canvas
-            ref={canvasRef}
-            width={1024}
-            height={1024}
-            className="w-full max-w-4xl"
-            style={{ maxHeight: "600px", objectFit: "contain" }}
-          />
-        </div>
-
-        <div className="bg-gray-800 p-4 space-y-4 border-t border-gray-700">
-          {/* 1. Enhanced Round Selector (Pill Selector) */}
-          <div className="flex flex-wrap items-center justify-between gap-3 p-2 bg-gray-700/50 rounded-lg shadow-inner">
-            <label className="text-sm font-semibold text-gray-300 mr-2 flex-shrink-0">
-              Select Round:
-            </label>
-            <div className="flex flex-1 overflow-x-auto overflow-y-hidden p-1 space-x-2">
-              {matchData.rounds?.map((r, idx) => {
-                const isSelected = idx === selectedRound;
-                const winnerColor =
-                  r.winnerSide === "CT" ? "bg-blue-800" : "bg-red-800";
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleRoundChange(idx)}
-                    className={`
-                      px-3 py-1 text-xs font-medium rounded-full transition-all duration-200 flex-shrink-0
-                      ${
-                        isSelected
-                          ? `${winnerColor} text-white ring-2 ring-offset-2 ring-offset-gray-800 ring-white/50`
-                          : "bg-gray-600 text-gray-300 hover:bg-gray-500"
-                      }
-                    `}
-                  >
-                    R {r.roundNum} ({r.winnerSide})
-                  </button>
-                );
-              })}
+    <div className="w-full h-full bg-gray-900 text-white rounded-lg shadow-xl overflow-hidden flex flex-col">
+      <div className="flex flex-col h-full">
+        {/* Compact Header with Score */}
+        <div className="p-3 border-b border-gray-700 bg-gray-800 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold">{matchData.header?.mapName}</h2>
+              <p className="text-xs text-gray-400">
+                Tick Rate: {matchData.header?.tickRate}
+              </p>
             </div>
-          </div>
-
-          {/* Playback Controls and Slider */}
-          <div className="flex items-center gap-4 bg-gray-700 p-3 rounded-lg shadow-md flex-wrap">
-            {/* Control Buttons */}
-            <div className="flex gap-2 flex-shrink-0">
-              <button
-                onClick={() => {
-                  setCurrentTick(round?.startTick || 0);
-                  playerStatesRef.current.clear();
-                }}
-                className="p-2 bg-gray-600 rounded-lg hover:bg-gray-500 shadow-sm transition-colors"
-              >
-                <SkipBack size={18} />
-              </button>
-
-              <button
-                onClick={() => setIsPlaying(!isPlaying)}
-                // Use darker blue for play button
-                className="p-3 bg-blue-700 rounded-lg hover:bg-blue-800 shadow-lg transition-colors"
-              >
-                {isPlaying ? <Pause size={20} /> : <Play size={20} />}
-              </button>
-
-              <button
-                onClick={() => {
-                  setCurrentTick(round?.endTick || 0);
-                }}
-                className="p-2 bg-gray-600 rounded-lg hover:bg-gray-500 shadow-sm transition-colors"
-                disabled={!round}
-              >
-                <SkipForward size={18} />
-              </button>
-            </div>
-
-            {/* Tick Slider */}
-            <div className="flex-1 min-w-[200px] space-y-1">
-              <input
-                type="range"
-                min={round?.startTick || 0}
-                max={round?.endTick || 1000}
-                value={currentTick}
-                onChange={handleTickChange}
-                className="w-full h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer range-lg"
-                style={{
-                  "--tw-ring-color": TEAM_COLORS.CT_MAIN,
-                }}
-              />
-              <div className="flex justify-between text-xs text-gray-400">
-                <span>Tick: {currentTick}</span>
-                <span>End: {round?.endTick || 0}</span>
-              </div>
-            </div>
-
-            {/* Speed Selector */}
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <FastForward size={16} className="text-gray-400" />
-              <select
-                value={playbackSpeed}
-                onChange={handleSpeedChange}
-                className="px-3 py-2 bg-gray-600 rounded-lg text-sm font-medium border border-gray-500 hover:border-gray-400 transition-colors"
-              >
-                <option value="1">1x</option>
-                <option value="2">2x</option>
-                <option value="5">5x</option>
-                <option value="10">10x</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Match Score and Heatmap Info (Bottom Row) */}
-          <div className="flex items-center justify-between gap-4 pt-2 border-t border-gray-700">
             {round && (
-              <div className="text-lg font-bold">
-                {/* Score display using muted colors */}
+              <div className="text-sm font-bold">
                 <span className={teamA_Color}>
                   {teamA_Name}: {scoreTeamA}
                 </span>
@@ -598,102 +562,177 @@ const CS2MapRenderer = ({
                 </span>
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Heatmap Toggle and Info */}
-            <div className="flex items-center gap-4 text-sm flex-wrap">
-              {/* Heatmap Mode Selector - ALWAYS SHOW if any heatmap data exists */}
-              {(allRoundHeatmapData || teamSideHeatmaps) && (
-                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
-                  <label className="text-sm font-medium text-gray-300">
-                    Heatmap Mode:
-                  </label>
-                  <select
-                    value={heatmapMode}
-                    onChange={(e) => setHeatmapMode(e.target.value)}
-                    className="px-3 py-1.5 bg-gray-600 rounded text-sm font-medium border border-gray-500 hover:border-gray-400"
-                    disabled={!allRoundHeatmapData || !teamSideHeatmaps}
+        {/* Canvas - takes remaining space */}
+        <div className="bg-gray-800 flex justify-center items-center flex-1 min-h-0">
+          <canvas
+            ref={canvasRef}
+            width={1024}
+            height={1024}
+            className="w-full h-full"
+            style={{ objectFit: "contain" }}
+          />
+        </div>
+
+        {/* Compact Controls */}
+        <div className="bg-gray-800 p-3 space-y-2 border-t border-gray-700 flex-shrink-0">
+          {/* Round Selector - Connected Rectangle Strip */}
+          <div className="bg-gray-700/50 rounded-lg p-2">
+            <div className="flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+              {matchData.rounds?.map((r, idx) => {
+                const isSelected = idx === selectedRound;
+                const isFirst = idx === 0;
+                const isLast = idx === matchData.rounds.length - 1;
+
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleRoundChange(idx)}
+                    className={`
+            min-w-[44px] px-3 py-2 text-sm font-medium transition-all flex-shrink-0 border-y border-r
+            ${isFirst ? "rounded-l border-l" : ""}
+            ${isLast ? "rounded-r" : ""}
+            ${
+              isSelected
+                ? "bg-gray-600 text-white border-gray-500 z-10"
+                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600 hover:text-gray-200 border-gray-600"
+            }
+          `}
+                    title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
                   >
-                    <option value="per-round" disabled={!allRoundHeatmapData}>
-                      Per Round
-                    </option>
-                    <option value="team-side" disabled={!teamSideHeatmaps}>
-                      Team+Side (Aggregated)
-                    </option>
-                  </select>
-                </div>
-              )}
-
-              {/* Team+Side Selector (only shown in team-side mode) */}
-              {heatmapMode === "team-side" && teamSideOptions.length > 0 && (
-                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
-                  <label className="text-sm font-medium text-gray-300">
-                    Select Team:
-                  </label>
-                  <select
-                    value={selectedTeamSide || ""}
-                    onChange={(e) => setSelectedTeamSide(e.target.value)}
-                    className="px-3 py-1.5 bg-gray-600 rounded text-sm font-medium border border-gray-500 hover:border-gray-400"
-                  >
-                    {teamSideOptions.map((opt) => (
-                      <option key={opt.value} value={opt.value}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              <button
-                onClick={() => setShowHeatmap(!showHeatmap)}
-                className={`px-4 py-2 rounded-lg font-semibold transition-colors ${
-                  showHeatmap
-                    ? "bg-green-700 hover:bg-green-800"
-                    : "bg-gray-700 hover:bg-gray-600"
-                }`}
-                disabled={!allRoundHeatmapData && !teamSideHeatmaps}
-              >
-                {showHeatmap ? "Hide Heatmap" : "Show Heatmap"}
-              </button>
-
-              {/* Heatmap Opacity Slider */}
-              {showHeatmap && (allRoundHeatmapData || teamSideHeatmaps) && (
-                <div className="flex items-center gap-2 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
-                  <label className="text-sm font-medium text-gray-300 whitespace-nowrap">
-                    Opacity:
-                  </label>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={heatmapOpacity * 100}
-                    onChange={(e) =>
-                      setHeatmapOpacity(parseInt(e.target.value) / 100)
-                    }
-                    className="w-24 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-400 min-w-[3ch]">
-                    {Math.round(heatmapOpacity * 100)}%
-                  </span>
-                </div>
-              )}
-
-              {currentHeatmapData && showHeatmap && (
-                <div className="text-sm text-gray-300 bg-gray-700 px-3 py-2 rounded-lg border border-gray-600">
-                  {heatmapMode === "team-side" ? (
-                    <span>
-                      {selectedTeamSide?.replace(/_/g, " ")}:{" "}
-                      <strong>{ctSamples + tSamples} samples</strong>
-                    </span>
-                  ) : (
-                    <span>
-                      Round {currentRoundNum}: CT (<strong>{ctSamples}</strong>)
-                      | T (<strong>{tSamples}</strong>)
-                    </span>
-                  )}
-                </div>
-              )}
+                    {r.roundNum}
+                  </button>
+                );
+              })}
             </div>
           </div>
+
+          {/* Playback Controls - Single Row */}
+          <div className="flex items-center gap-2 bg-gray-700 p-2 rounded-lg">
+            <button
+              onClick={() => {
+                setCurrentTick(round?.startTick || 0);
+                playerStatesRef.current.clear();
+              }}
+              className="p-1.5 bg-gray-600 rounded hover:bg-gray-500"
+            >
+              <SkipBack size={14} />
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-2 bg-blue-700 rounded hover:bg-blue-800"
+            >
+              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+            </button>
+
+            <button
+              onClick={() => setCurrentTick(round?.endTick || 0)}
+              className="p-1.5 bg-gray-600 rounded hover:bg-gray-500"
+              disabled={!round}
+            >
+              <SkipForward size={14} />
+            </button>
+
+            <div className="flex-1 min-w-0">
+              <input
+                type="range"
+                min={round?.startTick || 0}
+                max={round?.endTick || 1000}
+                value={currentTick}
+                onChange={handleTickChange}
+                className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+              />
+            </div>
+
+            <select
+              value={playbackSpeed}
+              onChange={handleSpeedChange}
+              className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+            >
+              <option value="1">1x</option>
+              <option value="2">2x</option>
+              <option value="5">5x</option>
+              <option value="10">10x</option>
+            </select>
+          </div>
+
+          {/* Heatmap Controls - Collapsible */}
+          {(allRoundHeatmapData || teamSideHeatmaps) && (
+            <div className="bg-gray-700/50 rounded-lg p-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <button
+                  onClick={() => setShowHeatmap(!showHeatmap)}
+                  className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                    showHeatmap
+                      ? "bg-green-700 hover:bg-green-800"
+                      : "bg-gray-600 hover:bg-gray-500"
+                  }`}
+                >
+                  {showHeatmap ? "Hide" : "Show"} Heatmap
+                </button>
+
+                {showHeatmap && (
+                  <>
+                    <select
+                      value={heatmapMode}
+                      onChange={(e) => setHeatmapMode(e.target.value)}
+                      className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+                      disabled={!allRoundHeatmapData || !teamSideHeatmaps}
+                    >
+                      <option value="per-round" disabled={!allRoundHeatmapData}>
+                        Per Round
+                      </option>
+                      <option value="team-side" disabled={!teamSideHeatmaps}>
+                        Team+Side
+                      </option>
+                    </select>
+
+                    {heatmapMode === "team-side" &&
+                      teamSideOptions.length > 0 && (
+                        <select
+                          value={selectedTeamSide || ""}
+                          onChange={(e) => setSelectedTeamSide(e.target.value)}
+                          className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+                        >
+                          {teamSideOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="range"
+                        min="0"
+                        max="100"
+                        value={heatmapOpacity * 100}
+                        onChange={(e) =>
+                          setHeatmapOpacity(parseInt(e.target.value) / 100)
+                        }
+                        className="w-16 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                      />
+                      <span className="text-xs text-gray-400 min-w-[3ch]">
+                        {Math.round(heatmapOpacity * 100)}%
+                      </span>
+                    </div>
+
+                    {currentHeatmapData && (
+                      <span className="text-xs text-gray-300">
+                        {heatmapMode === "team-side"
+                          ? `${ctSamples + tSamples} samples`
+                          : `CT: ${ctSamples} | T: ${tSamples}`}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
