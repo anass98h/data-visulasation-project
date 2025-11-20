@@ -14,7 +14,6 @@ const CS2Dashboard = () => {
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [matchSelection, setMatchSelection] = useState("match1");
   const [economyData, setEconomyData] = useState({});
   const [lineChartData, setLineChartData] = useState([]);
   const [currentRoundContext, setCurrentRoundContext] = useState(1);
@@ -26,6 +25,12 @@ const CS2Dashboard = () => {
   const [fileName, setFileName] = useState("");
   const workerRef = useRef(null);
   const fileNameRef = useRef(""); // Add ref to avoid closure issues
+
+  const [staticTeamMapping, setStaticTeamMapping] = useState({
+    CT: "TeamA",
+    T: "TeamB",
+  });
+  const [teamMapping, setTeamMapping] = useState(staticTeamMapping);
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -304,7 +309,7 @@ const CS2Dashboard = () => {
   // ... rest of your existing code (getCurrentTeamsForRound, stats calculation, etc.)
   const getCurrentTeamsForRound = (roundNum) => {
     const initialMap = initialTeamMapping;
-    const isSecondHalf = roundNum > 15;
+    const isSecondHalf = roundNum > 12;
 
     if (isSecondHalf) {
       return {
@@ -414,8 +419,9 @@ const CS2Dashboard = () => {
             matchData={null}
             heatmapData={null}
             teamSideHeatmapData={null}
-            teamMapping={null}
-            staticTeamMapping={null}
+            staticTeamMapping={staticTeamMapping}
+            teamMapping={teamMapping}
+            setTeamMapping={setTeamMapping}
           />
         </div>
       </div>
@@ -563,7 +569,12 @@ const CS2Dashboard = () => {
 
               {/* Economy Cards */}
               <div className="mb-4">
-                <Economy economyData={economyData} teamNames={teamNames} />
+                <Economy
+                  economyData={economyData}
+                  teamNames={teamNames}
+                  teamMapping={teamMapping}
+                  staticTeamMapping={staticTeamMapping}
+                />
               </div>
 
               {/* Line Chart with Interactive Legend */}

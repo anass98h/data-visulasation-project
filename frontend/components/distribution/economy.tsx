@@ -3,28 +3,39 @@
 interface EconomyProps {
   economyData: any;
   teamNames: Record<number, string>;
+  teamMapping?: { CT: string; T: string };
+  staticTeamMapping?: { CT: string; T: string };
 }
 
-const Economy = ({ economyData, teamNames }: EconomyProps) => {
+const Economy = ({
+  economyData,
+  teamNames,
+  teamMapping,
+  staticTeamMapping,
+}: EconomyProps) => {
   console.log("Economy component is rendering");
+
+  // teamNames[1] is the team that started as CT
+  // teamNames[2] is the team that started as T
+  // economyData.teams[1] is the economy for team that started as CT
+  // economyData.teams[2] is the economy for team that started as T
+
+  const team1Name = teamNames?.[1] || staticTeamMapping?.CT || "Team 1";
+  const team2Name = teamNames?.[2] || staticTeamMapping?.T || "Team 2";
 
   if (!economyData || !economyData.teams) {
     return (
       <div className="grid gap-3 md:grid-cols-2">
         <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
           <div className="mb-1">
-            <h3 className="text-sm font-semibold text-white">
-              {teamNames?.[1] || "Team 1"}
-            </h3>
+            <h3 className="text-sm font-semibold text-white">{team1Name}</h3>
             <p className="text-xs text-gray-400">Total economy</p>
           </div>
           <div className="text-xl font-bold text-gray-500">Loading...</div>
         </div>
         <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
           <div className="mb-1">
-            <h3 className="text-sm font-semibold text-white">
-              {teamNames?.[2] || "Team 2"}
-            </h3>
+            <h3 className="text-sm font-semibold text-white">{team2Name}</h3>
             <p className="text-xs text-gray-400">Total economy</p>
           </div>
           <div className="text-xl font-bold text-gray-500">Loading...</div>
@@ -37,9 +48,7 @@ const Economy = ({ economyData, teamNames }: EconomyProps) => {
     <div className="grid gap-3 md:grid-cols-2">
       <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
         <div className="mb-1">
-          <h3 className="text-sm font-semibold text-white">
-            {economyData.teams[1]?.name || "Team 1"}
-          </h3>
+          <h3 className="text-sm font-semibold text-white">{team1Name}</h3>
           <p className="text-xs text-gray-400">Total economy</p>
         </div>
         <div className="text-2xl font-bold text-blue-400">
@@ -48,9 +57,7 @@ const Economy = ({ economyData, teamNames }: EconomyProps) => {
       </div>
       <div className="bg-gray-700 p-4 rounded-lg border border-gray-600 text-center">
         <div className="mb-1">
-          <h3 className="text-sm font-semibold text-white">
-            {economyData.teams[2]?.name || "Team 2"}
-          </h3>
+          <h3 className="text-sm font-semibold text-white">{team2Name}</h3>
           <p className="text-xs text-gray-400">Total economy</p>
         </div>
         <div className="text-2xl font-bold text-red-400">

@@ -114,6 +114,7 @@ const CS2MapRenderer = ({
   teamMapping,
   staticTeamMapping,
   setCurrentRoundContext,
+  setTeamMapping, // NEW: callback to update parent's teamMapping when sides switch
 }) => {
   const [matchData, setMatchData] = useState(externalMatchData);
   const [allRoundHeatmapData, setAllRoundHeatmapData] =
@@ -325,7 +326,31 @@ const CS2MapRenderer = ({
     if (round && setCurrentRoundContext) {
       setCurrentRoundContext(round.roundNum);
     }
-  }, [selectedRound, matchData, setCurrentRoundContext]);
+
+    // Update parent's teamMapping when sides switch (at round 13)
+    if (round && setTeamMapping && staticTeamMapping) {
+      const sidesHaveSwitched = round.roundNum >= 13;
+      if (sidesHaveSwitched) {
+        // Sides have switched: CT team becomes T, T team becomes CT
+        setTeamMapping({
+          CT: staticTeamMapping.T,
+          T: staticTeamMapping.CT,
+        });
+      } else {
+        // Use original mapping
+        setTeamMapping({
+          CT: staticTeamMapping.CT,
+          T: staticTeamMapping.T,
+        });
+      }
+    }
+  }, [
+    selectedRound,
+    matchData,
+    setCurrentRoundContext,
+    setTeamMapping,
+    staticTeamMapping,
+  ]);
 
   useEffect(() => {
     if (!matchData || !canvasRef.current) return;
