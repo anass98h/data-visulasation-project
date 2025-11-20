@@ -511,13 +511,42 @@ const CS2MapRenderer = ({
   const teamA_Name = staticTeamMapping?.CT || "CT Team";
   const teamB_Name = staticTeamMapping?.T || "T Team";
 
-  const scoreTeamA = round?.ctScore || 0;
-  const scoreTeamB = round?.tScore || 0;
+  // Determine current sides based on round number
+  // Sides switch at round 13 (roundNum 13)
+  // Note: currentRoundNum is already defined earlier in the component
+  const sidesHaveSwitched = currentRoundNum >= 13;
 
-  const teamA_Color =
-    teamMapping.CT === teamA_Name ? "text-blue-500" : "text-red-500";
-  const teamB_Color =
-    teamMapping.CT === teamB_Name ? "text-blue-500" : "text-red-500";
+  // Calculate which team is currently on which side
+  const currentTeamA_IsCT = sidesHaveSwitched ? false : true; // teamA starts as CT, switches to T at round 13
+  const currentTeamB_IsCT = sidesHaveSwitched ? true : false; // teamB starts as T, switches to CT at round 13
+
+  // Calculate actual team scores by counting round wins up to current round
+  let scoreTeamA = 0;
+  let scoreTeamB = 0;
+
+  if (matchData?.rounds && selectedRound >= 0) {
+    for (let i = 0; i <= selectedRound; i++) {
+      const r = matchData.rounds[i];
+      if (!r) continue;
+
+      // Determine which side each team was on for this round
+      const roundNum = r.roundNum;
+      const teamA_WasCT = roundNum < 13; // Changed from <= 12 to < 13 for clarity
+
+      // Check who won this round
+      if (r.winnerSide === "CT") {
+        if (teamA_WasCT) scoreTeamA++;
+        else scoreTeamB++;
+      } else if (r.winnerSide === "T") {
+        if (teamA_WasCT) scoreTeamB++;
+        else scoreTeamA++;
+      }
+    }
+  }
+
+  // Set colors based on current sides
+  const teamA_Color = currentTeamA_IsCT ? "text-blue-500" : "text-red-500";
+  const teamB_Color = currentTeamB_IsCT ? "text-blue-500" : "text-red-500";
 
   // Get samples from current heatmap data for display
   const ctSamples = currentHeatmapData?.ct?.samples || 0;
