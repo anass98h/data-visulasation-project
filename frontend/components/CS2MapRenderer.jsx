@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import {
-  Play,
-  Pause,
-  SkipBack,
-  SkipForward,
-  AlertCircle,
-  FastForward,
-} from "lucide-react";
+import { Play, Pause, SkipBack, SkipForward, AlertCircle } from "lucide-react";
 
 const MAP_CONFIG = {
   ar_baggage: {
@@ -278,15 +271,18 @@ const CS2MapRenderer = ({
     const drawHeight = cellHeight * SHRINK_FACTOR;
     const drawOffset = (cellWidth * (1 - SHRINK_FACTOR)) / 2;
 
-    if (ct?.grid) {
+    if (ct?.grid && ct.grid.length > 0) {
       for (let row = 0; row < ct.grid.length; row++) {
         for (let col = 0; col < ct.grid[row].length; col++) {
           // Density is normalized 0-1
           const density = ct.grid[row][col];
           if (density > 0) {
-            // Gentler opacity formula: density weighted more heavily
-            const alpha = Math.min(density * 0.7 + heatmapOpacity * 0.3, 0.85);
-            ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
+            // Improved opacity formula with better color visibility
+            const alpha = Math.min(
+              Math.pow(density, 0.7) * 0.8 + heatmapOpacity * 0.2,
+              0.9
+            );
+            ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`; // Blue for CT
 
             ctx.fillRect(
               col * cellWidth + drawOffset,
@@ -299,14 +295,17 @@ const CS2MapRenderer = ({
       }
     }
 
-    if (t?.grid) {
+    if (t?.grid && t.grid.length > 0) {
       for (let row = 0; row < t.grid.length; row++) {
         for (let col = 0; col < t.grid[row].length; col++) {
           const density = t.grid[row][col];
           if (density > 0) {
-            // Gentler opacity formula: density weighted more heavily
-            const alpha = Math.min(density * 0.7 + heatmapOpacity * 0.3, 0.85);
-            ctx.fillStyle = `rgba(220, 38, 38, ${alpha})`;
+            // Improved opacity formula with better color visibility
+            const alpha = Math.min(
+              Math.pow(density, 0.7) * 0.8 + heatmapOpacity * 0.2,
+              0.9
+            );
+            ctx.fillStyle = `rgba(220, 38, 38, ${alpha})`; // Red for T
 
             ctx.fillRect(
               col * cellWidth + drawOffset,
@@ -464,6 +463,7 @@ const CS2MapRenderer = ({
     tickIndex,
     showHeatmap,
     currentHeatmapData, // DEPENDENCY CHANGED: Triggers re-render when round changes
+    heatmapOpacity,
     getCurrentRound,
     setCurrentRoundContext,
   ]);
@@ -511,9 +511,22 @@ const CS2MapRenderer = ({
   const teamA_Name = staticTeamMapping?.CT || "CT Team";
   const teamB_Name = staticTeamMapping?.T || "T Team";
 
-  // Use teamMapping from parent to determine current sides
-  const currentTeamA_IsCT = teamMapping?.CT === teamA_Name;
-  const currentTeamB_IsCT = teamMapping?.CT === teamB_Name;
+  // Determine current sides based on round number (teams switch at round 13)
+  const currentRound = matchData?.rounds?.[selectedRound];
+  const isFirstHalf = currentRound?.roundNum < 13;
+
+  // Use teamMapping from parent if available, otherwise fallback to round-based logic
+  let currentTeamA_IsCT, currentTeamB_IsCT;
+
+  if (teamMapping?.CT || teamMapping?.T) {
+    // Use parent's teamMapping if available
+    currentTeamA_IsCT = teamMapping?.CT === teamA_Name;
+    currentTeamB_IsCT = teamMapping?.CT === teamB_Name;
+  } else {
+    // Fallback: assume teamA starts as CT (rounds 1-12), then switches to T (round 13+)
+    currentTeamA_IsCT = isFirstHalf;
+    currentTeamB_IsCT = !isFirstHalf;
+  }
 
   // Calculate actual team scores by counting round wins up to current round
   let scoreTeamA = 0;
@@ -539,9 +552,9 @@ const CS2MapRenderer = ({
     }
   }
 
-  // Set colors based on current sides from teamMapping
-  const teamA_Color = currentTeamA_IsCT ? "text-blue-500" : "text-red-500";
-  const teamB_Color = currentTeamB_IsCT ? "text-blue-500" : "text-red-500";
+  // Set colors based on current sides - using inline styles for guaranteed rendering
+  const teamA_Color = currentTeamA_IsCT ? "#60a5fa" : "#f87171"; // blue-400 : red-400
+  const teamB_Color = currentTeamB_IsCT ? "#60a5fa" : "#f87171"; // blue-400 : red-400
 
   // Get samples from current heatmap data for display
   const ctSamples = currentHeatmapData?.ct?.samples || 0;
@@ -577,11 +590,11 @@ const CS2MapRenderer = ({
             </div>
             {round && (
               <div className="text-sm font-bold">
-                <span className={teamA_Color}>
+                <span style={{ color: teamA_Color }}>
                   {teamA_Name}: {scoreTeamA}
                 </span>
-                {" - "}
-                <span className={teamB_Color}>
+                <span className="text-gray-400"> - </span>
+                <span style={{ color: teamB_Color }}>
                   {teamB_Name}: {scoreTeamB}
                 </span>
               </div>
@@ -602,64 +615,70 @@ const CS2MapRenderer = ({
 
         {/* Compact Controls */}
         <div className="bg-gray-800 p-3 space-y-2 border-t border-gray-700 flex-shrink-0">
-          {/* Round Selector - Connected Rectangle Strip */}
-          <div className="bg-gray-700/50 rounded-lg p-2">
-            <div className="flex overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-              {matchData.rounds?.map((r, idx) => {
-                const isSelected = idx === selectedRound;
-                const isFirst = idx === 0;
-                const isLast = idx === matchData.rounds.length - 1;
-
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => handleRoundChange(idx)}
-                    className={`
-            min-w-[44px] px-3 py-2 text-sm font-medium transition-all flex-shrink-0 border-y border-r
-            ${isFirst ? "rounded-l border-l" : ""}
-            ${isLast ? "rounded-r" : ""}
-            ${
-              isSelected
-                ? "bg-gray-600 text-white border-gray-500 z-10"
-                : "bg-gray-700/50 text-gray-400 hover:bg-gray-600 hover:text-gray-200 border-gray-600"
-            }
-          `}
-                    title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
-                  >
-                    {r.roundNum}
-                  </button>
-                );
-              })}
+          {/* Round Selector - Centered Segmented Bar Design */}
+          <div className="w-full rounded-lg border border-gray-700 bg-gray-900/50 overflow-hidden relative">
+            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+              {/* w-fit shrinks the container to content width, mx-auto centers it */}
+              <div className="flex w-fit mx-auto divide-x divide-gray-700/50">
+                {matchData.rounds?.map((r, idx) => {
+                  const isSelected = idx === selectedRound;
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => handleRoundChange(idx)}
+                      className={`
+                      flex-none w-10 h-10 flex items-center justify-center text-sm font-medium transition-colors outline-none focus:outline-none
+                      ${
+                        isSelected
+                          ? "bg-gray-700 text-white"
+                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
+                      }
+                    `}
+                      title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
+                    >
+                      {r.roundNum}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
-          {/* Playback Controls - Single Row */}
-          <div className="flex items-center gap-2 bg-gray-700 p-2 rounded-lg">
-            <button
+          {/* Playback Controls */}
+          <div className="flex items-center gap-2 bg-gray-700/30 p-2 rounded-lg">
+            {/* Skip to start button */}
+            {/* <button
               onClick={() => {
                 setCurrentTick(round?.freezeTimeEndTick || 0);
                 playerStatesRef.current.clear();
               }}
-              className="p-1.5 bg-gray-600 rounded hover:bg-gray-500"
+              className="p-2.5 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-all text-gray-300"
             >
-              <SkipBack size={14} />
-            </button>
+              <SkipBack size={18} />
+            </button> */}
 
+            {/* Play/Pause button */}
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className="p-2 bg-blue-700 rounded hover:bg-blue-800"
+              className="p-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition-all"
             >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+              {isPlaying ? (
+                <Pause size={20} />
+              ) : (
+                <Play size={20} className="ml-0.5" />
+              )}
             </button>
 
-            <button
+            {/* Skip to end button */}
+            {/* <button
               onClick={() => setCurrentTick(round?.endTick || 0)}
-              className="p-1.5 bg-gray-600 rounded hover:bg-gray-500"
+              className="p-2.5 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-all text-gray-300"
               disabled={!round}
             >
-              <SkipForward size={14} />
-            </button>
+              <SkipForward size={18} />
+            </button> */}
 
+            {/* Progress bar */}
             <div className="flex-1 min-w-0">
               <input
                 type="range"
@@ -667,14 +686,15 @@ const CS2MapRenderer = ({
                 max={round?.endTick || 1000}
                 value={currentTick}
                 onChange={handleTickChange}
-                className="w-full h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                className="w-full h-2 bg-gray-600/50 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer"
               />
             </div>
 
+            {/* Speed selector */}
             <select
               value={playbackSpeed}
               onChange={handleSpeedChange}
-              className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+              className="px-3 py-2 rounded-lg text-sm text-gray-200 bg-gray-600 transition-all cursor-pointer border-0 outline-none"
             >
               <option value="1">1x</option>
               <option value="2">2x</option>
@@ -683,16 +703,16 @@ const CS2MapRenderer = ({
             </select>
           </div>
 
-          {/* Heatmap Controls - Collapsible */}
+          {/* Heatmap Controls */}
           {(allRoundHeatmapData || teamSideHeatmaps) && (
-            <div className="bg-gray-700/50 rounded-lg p-2">
+            <div className="bg-gray-700/30 rounded-lg p-4">
               <div className="flex items-center gap-2 flex-wrap">
                 <button
                   onClick={() => setShowHeatmap(!showHeatmap)}
-                  className={`px-3 py-1 rounded text-xs font-semibold transition-colors ${
+                  className={`px-4 py-4 rounded-lg text-sm font-semibold transition-all ${
                     showHeatmap
-                      ? "bg-green-700 hover:bg-green-800"
-                      : "bg-gray-600 hover:bg-gray-500"
+                      ? "bg-green-600 hover:bg-green-700 text-white"
+                      : "bg-blue-600 hover:bg-gray-600 text-gray-300"
                   }`}
                 >
                   {showHeatmap ? "Hide" : "Show"} Heatmap
@@ -703,7 +723,7 @@ const CS2MapRenderer = ({
                     <select
                       value={heatmapMode}
                       onChange={(e) => setHeatmapMode(e.target.value)}
-                      className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+                      className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
                       disabled={!allRoundHeatmapData || !teamSideHeatmaps}
                     >
                       <option value="per-round" disabled={!allRoundHeatmapData}>
@@ -719,7 +739,7 @@ const CS2MapRenderer = ({
                         <select
                           value={selectedTeamSide || ""}
                           onChange={(e) => setSelectedTeamSide(e.target.value)}
-                          className="px-2 py-1 bg-gray-600 rounded text-xs border border-gray-500"
+                          className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
                         >
                           {teamSideOptions.map((opt) => (
                             <option key={opt.value} value={opt.value}>
@@ -729,7 +749,8 @@ const CS2MapRenderer = ({
                         </select>
                       )}
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-gray-400">Opacity:</span>
                       <input
                         type="range"
                         min="0"
@@ -738,15 +759,15 @@ const CS2MapRenderer = ({
                         onChange={(e) =>
                           setHeatmapOpacity(parseInt(e.target.value) / 100)
                         }
-                        className="w-16 h-1.5 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                        className="w-20 h-2 bg-gray-600/50 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer"
                       />
-                      <span className="text-xs text-gray-400 min-w-[3ch]">
+                      <span className="text-xs text-gray-300 min-w-[3ch]">
                         {Math.round(heatmapOpacity * 100)}%
                       </span>
                     </div>
 
                     {currentHeatmapData && (
-                      <span className="text-xs text-gray-300">
+                      <span className="text-xs text-gray-400">
                         {heatmapMode === "team-side"
                           ? `${ctSamples + tSamples} samples`
                           : `CT: ${ctSamples} | T: ${tSamples}`}

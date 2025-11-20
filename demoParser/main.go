@@ -340,6 +340,7 @@ func parseDemoInternal(data js.Value, callback js.Value, optionsArgs []js.Value)
 	currentRound := RoundEvent{}
 	tickRateKnown := false
 	actualTickInterval := options.TickInterval
+	inFreezeTime := false
 
 	// Round start
 	parser.RegisterEventHandler(func(e events.RoundStart) {
@@ -352,11 +353,13 @@ func parseDemoInternal(data js.Value, callback js.Value, optionsArgs []js.Value)
 			TScore:        gs.TeamTerrorists().Score(),
 			BombPlantTick: -1,
 		}
+		inFreezeTime = true // Set freeze time flag when round starts
 	})
 
 	// Freeze time end
 	parser.RegisterEventHandler(func(e events.RoundFreezetimeEnd) {
 		currentRound.FreezeTimeEndTick = parser.CurrentFrame()
+		inFreezeTime = false // Clear freeze time flag when freeze time ends
 
 		gs := parser.GameState()
 
@@ -674,6 +677,11 @@ func parseDemoInternal(data js.Value, callback js.Value, optionsArgs []js.Value)
 			}
 			tickRateKnown = true
 			fmt.Println("Tick rate:", tickRate, "Actual tick interval:", actualTickInterval)
+		}
+
+		// Skip ticks during freeze time
+		if inFreezeTime {
+			return
 		}
 
 		if frame-lastRecordedTick >= actualTickInterval {
