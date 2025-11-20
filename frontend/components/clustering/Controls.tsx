@@ -17,6 +17,12 @@ interface ControlsProps {
   onToggleTimepoint: (tp: number) => void;
   economyWeight: number; // 0..1
   onEconomyWeightChange: (w: number) => void;
+  includeEconomy: boolean;
+  onIncludeEconomyChange: (value: boolean) => void;
+  normalizePositions: boolean;
+  onNormalizePositionsChange: (value: boolean) => void;
+  relativePositions: boolean;
+  onRelativePositionsChange: (value: boolean) => void;
   // reduction method
   reductionMethod?: "tsne" | "umap";
   onReductionMethodChange?: (m: "tsne" | "umap") => void;
@@ -62,6 +68,12 @@ const Controls: React.FC<ControlsProps> = ({
   onToggleTimepoint,
   economyWeight,
   onEconomyWeightChange,
+  includeEconomy,
+  onIncludeEconomyChange,
+  normalizePositions,
+  onNormalizePositionsChange,
+  relativePositions,
+  onRelativePositionsChange,
   onRun,
   reductionMethod = "tsne",
   onReductionMethodChange,
@@ -208,6 +220,40 @@ const Controls: React.FC<ControlsProps> = ({
             onChange={(e) => onEconomyWeightChange(Number(e.target.value))}
             className="w-full"
           />
+        </div>
+
+        {/* Feature toggles */}
+        <div className="space-y-2">
+          <div className="text-sm text-gray-300">Feature inputs</div>
+          <div className="flex flex-col gap-1 text-sm text-gray-300">
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={includeEconomy}
+                onChange={(e) => onIncludeEconomyChange(e.target.checked)}
+                className="accent-indigo-500"
+              />
+              Include economy vectors
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={normalizePositions}
+                onChange={(e) => onNormalizePositionsChange(e.target.checked)}
+                className="accent-indigo-500"
+              />
+              Normalize map positions
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={relativePositions}
+                onChange={(e) => onRelativePositionsChange(e.target.checked)}
+                className="accent-indigo-500"
+              />
+              Use relative positions (centroid‑based)
+            </label>
+          </div>
         </div>
 
         {/* Reduction method selector */}

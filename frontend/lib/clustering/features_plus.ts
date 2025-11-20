@@ -10,6 +10,9 @@ export interface BuildPlusOptions {
   economyWeight?: number;
   impute?: boolean;
   imputeMaxDeltaSeconds?: number;
+  includeEconomy?: boolean;
+  normalizePositions?: boolean;
+  relativePositions?: boolean;
 }
 
 export function buildFeatureMatrixWithRegions(
@@ -26,10 +29,18 @@ export function buildFeatureMatrixWithRegions(
     : snapshots;
 
   // Base positional + economy features
-  const { matrix: base, rows } = buildFeatureMatrix(imputed, selectedTimepoints, {
-    desiredPlayers: opts?.desiredPlayers,
-    economyWeight: opts?.economyWeight,
-  }, teamFilter);
+  const { matrix: base, rows } = buildFeatureMatrix(
+    imputed,
+    selectedTimepoints,
+    {
+      desiredPlayers: opts?.desiredPlayers,
+      economyWeight: opts?.economyWeight,
+      includeEconomy: opts?.includeEconomy,
+      normalizePositions: opts?.normalizePositions,
+      relativePositions: opts?.relativePositions,
+    },
+    teamFilter
+  );
 
   // Build region features per (round, team)
   const byKey = new Map<string, Snapshot[]>();
