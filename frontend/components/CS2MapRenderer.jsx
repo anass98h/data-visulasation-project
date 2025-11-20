@@ -191,7 +191,7 @@ const CS2MapRenderer = ({
     if (!matchData?.rounds) return null;
     return (
       matchData.rounds.find(
-        (r) => currentTick >= r.startTick && currentTick <= r.endTick
+        (r) => currentTick >= r.freezeTimeEndTick && currentTick <= r.endTick
       ) || matchData.rounds[selectedRound]
     );
   };
@@ -199,7 +199,7 @@ const CS2MapRenderer = ({
   useEffect(() => {
     if (externalMatchData) {
       setMatchData(externalMatchData);
-      setCurrentTick(externalMatchData.rounds?.[0]?.startTick || 0);
+      setCurrentTick(externalMatchData.rounds?.[0]?.freezeTimeEndTick || 0);
       setSelectedRound(0);
       playerStatesRef.current.clear();
 
@@ -478,9 +478,9 @@ const CS2MapRenderer = ({
       setCurrentTick((prev) => {
         const next = prev + 1;
         if (next >= round.endTick + 100) {
-          setCurrentTick(round.startTick);
+          setCurrentTick(round.freezeTimeEndTick);
           playerStatesRef.current.clear();
-          return round.startTick;
+          return round.freezeTimeEndTick;
         }
         return next;
       });
@@ -491,7 +491,7 @@ const CS2MapRenderer = ({
 
   const handleRoundChange = (idx) => {
     setSelectedRound(idx);
-    setCurrentTick(matchData.rounds[idx]?.startTick || 0);
+    setCurrentTick(matchData.rounds[idx]?.freezeTimeEndTick || 0);
     playerStatesRef.current.clear();
     if (setCurrentRoundContext && matchData.rounds[idx]) {
       setCurrentRoundContext(matchData.rounds[idx].roundNum);
@@ -637,7 +637,7 @@ const CS2MapRenderer = ({
           <div className="flex items-center gap-2 bg-gray-700 p-2 rounded-lg">
             <button
               onClick={() => {
-                setCurrentTick(round?.startTick || 0);
+                setCurrentTick(round?.freezeTimeEndTick || 0);
                 playerStatesRef.current.clear();
               }}
               className="p-1.5 bg-gray-600 rounded hover:bg-gray-500"
@@ -663,7 +663,7 @@ const CS2MapRenderer = ({
             <div className="flex-1 min-w-0">
               <input
                 type="range"
-                min={round?.startTick || 0}
+                min={round?.freezeTimeEndTick || 0}
                 max={round?.endTick || 1000}
                 value={currentTick}
                 onChange={handleTickChange}
