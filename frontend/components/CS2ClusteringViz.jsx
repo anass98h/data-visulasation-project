@@ -309,7 +309,7 @@ const CS2Dashboard = () => {
   // ... rest of your existing code (getCurrentTeamsForRound, stats calculation, etc.)
   const getCurrentTeamsForRound = (roundNum) => {
     const initialMap = initialTeamMapping;
-    const isSecondHalf = roundNum > 12;
+    const isSecondHalf = roundNum >= 13;
 
     if (isSecondHalf) {
       return {
@@ -421,7 +421,7 @@ const CS2Dashboard = () => {
             teamSideHeatmapData={null}
             staticTeamMapping={staticTeamMapping}
             teamMapping={teamMapping}
-            setTeamMapping={setTeamMapping}
+            setCurrentRoundContext={setCurrentRoundContext}
           />
         </div>
       </div>
@@ -544,15 +544,15 @@ const CS2Dashboard = () => {
                     <DollarSign className="w-5 h-5" />
                     Economy Distribution
                   </h3>
-                  {/* <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-400">
-                      Match:
+                  {/* Current Round Indicator */}
+                  <div className="flex items-center gap-2 bg-blue-600 px-3 py-1.5 rounded-lg">
+                    <span className="text-xs font-medium text-blue-100">
+                      Round
                     </span>
-                    <MatchDropdown
-                      value={matchSelection}
-                      onValueChange={setMatchSelection}
-                    />
-                  </div> */}
+                    <span className="text-lg font-bold text-white">
+                      {currentRoundContext}
+                    </span>
+                  </div>
                 </div>
                 {/* Team Side Legend */}
                 <div className="flex items-center gap-4 text-xs font-medium">
@@ -572,8 +572,8 @@ const CS2Dashboard = () => {
                 <Economy
                   economyData={economyData}
                   teamNames={teamNames}
-                  teamMapping={teamMapping}
-                  staticTeamMapping={staticTeamMapping}
+                  teamMapping={dynamicTeamMapping}
+                  staticTeamMapping={initialTeamMapping}
                 />
               </div>
 
