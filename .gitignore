@@ -50,6 +50,5 @@ utils/venv/
 .docs/
 
 backend/app/__pycache__
-backend/data
 frontend/components/CS2MapRenderer.jsx
 frontend/public/match_data2.json
