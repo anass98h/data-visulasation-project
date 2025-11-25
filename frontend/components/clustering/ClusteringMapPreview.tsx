@@ -91,7 +91,7 @@ const ClusteringMapPreview: React.FC<Props> = ({
           {mapName} • Team {team}
         </div>
       </div>
-      <div className="flex items-center justify-center p-3 bg-gray-900">
+      <div className="flex items-center justify-center p-3 bg-gray-800">
         <canvas
           ref={canvasRef}
           width={width}

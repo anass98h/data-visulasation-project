@@ -73,7 +73,7 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
   const layout: any = useMemo(
     () => ({
       paper_bgcolor: "#1f2937",
-      plot_bgcolor: "#111827",
+      plot_bgcolor: "#1f2937",
       margin: { l: 40, r: 20, t: 10, b: 40 },
       xaxis: {
         showgrid: true,
@@ -88,7 +88,7 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
         color: "#e5e7eb",
       },
       legend: { font: { color: "#e5e7eb" } },
-      height: 360,
+      height: 500,
     }),
     []
   );
@@ -104,31 +104,35 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
       </CardHeader>
       <CardContent>
         {points.length === 0 ? (
-          <div className="h-[360px] flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-[500px] flex items-center justify-center text-gray-400 text-sm">
             No data yet — click Run in Controls to populate a placeholder.
           </div>
         ) : (
-          <Plot
-            data={data}
-            layout={layout}
-            config={{ displayModeBar: false }}
-            onClick={(ev: any) => {
-              if (!onSelectCluster) return;
-              const traceIndex: number | undefined =
-                ev?.points?.[0]?.curveNumber;
-              if (traceIndex == null) return;
-              const traceName: string | undefined = (data[traceIndex] as any)
-                ?.name;
-              if (!traceName) return;
-              if (traceName === "unclustered") {
-                onSelectCluster(-1);
-              } else {
-                const m = traceName.match(/cluster\s+(\d+)/i);
-                const cid = m ? Number(m[1]) : null;
-                if (cid != null) onSelectCluster(cid);
-              }
-            }}
-          />
+          <div style={{ height: "500px", width: "100%" }}>
+            <Plot
+              data={data}
+              layout={layout}
+              config={{ displayModeBar: false, responsive: true }}
+              useResizeHandler={true}
+              style={{ width: "100%", height: "100%" }}
+              onClick={(ev: any) => {
+                if (!onSelectCluster) return;
+                const traceIndex: number | undefined =
+                  ev?.points?.[0]?.curveNumber;
+                if (traceIndex == null) return;
+                const traceName: string | undefined = (data[traceIndex] as any)
+                  ?.name;
+                if (!traceName) return;
+                if (traceName === "unclustered") {
+                  onSelectCluster(-1);
+                } else {
+                  const m = traceName.match(/cluster\s+(\d+)/i);
+                  const cid = m ? Number(m[1]) : null;
+                  if (cid != null) onSelectCluster(cid);
+                }
+              }}
+            />
+          </div>
         )}
       </CardContent>
     </Card>

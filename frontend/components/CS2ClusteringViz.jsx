@@ -1021,7 +1021,7 @@ const CS2Dashboard = () => {
             </section>
 
             <section className="lg:col-span-2">
-              <div className="mb-4">
+              <div className="mb-6">
                 <DimensionScatter
                   points={points}
                   selectedCluster={selectedCluster}
