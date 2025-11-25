@@ -17,12 +17,15 @@ const ClusteringMapPreview: React.FC<Props> = ({
   team = "CT",
   representative,
   width = 1024,
-  height = 600,
+  height = 1024,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [radar, setRadar] = useState<HTMLImageElement | null>(null);
 
-  const config = useMemo(() => MAP_CONFIG[mapName] ?? MAP_CONFIG.de_ancient, [mapName]);
+  const config = useMemo(
+    () => MAP_CONFIG[mapName] ?? MAP_CONFIG.de_ancient,
+    [mapName]
+  );
 
   useEffect(() => {
     const img = new Image();
@@ -47,8 +50,6 @@ const ClusteringMapPreview: React.FC<Props> = ({
     if (!ctx) return;
 
     ctx.clearRect(0, 0, width, height);
-    ctx.fillStyle = "#111827";
-    ctx.fillRect(0, 0, width, height);
 
     if (radar) {
       ctx.globalAlpha = 1;
@@ -61,7 +62,8 @@ const ClusteringMapPreview: React.FC<Props> = ({
         const pos = gameToCanvas(p.x, p.y);
         ctx.beginPath();
         ctx.arc(pos.x, pos.y, 10, 0, Math.PI * 2);
-        ctx.fillStyle = team === "CT" ? TEAM_COLORS.CT_MAIN : TEAM_COLORS.T_MAIN;
+        ctx.fillStyle =
+          team === "CT" ? TEAM_COLORS.CT_MAIN : TEAM_COLORS.T_MAIN;
         ctx.fill();
         ctx.lineWidth = 2;
         ctx.strokeStyle = "#ffffff";
@@ -85,14 +87,21 @@ const ClusteringMapPreview: React.FC<Props> = ({
     <div className="bg-gray-800 border border-gray-700 rounded">
       <div className="px-4 py-3 border-b border-gray-700 flex items-center justify-between">
         <div className="text-sm text-gray-200 font-semibold">Map Preview</div>
-        <div className="text-xs text-gray-400">{mapName} • Team {team}</div>
+        <div className="text-xs text-gray-400">
+          {mapName} • Team {team}
+        </div>
       </div>
       <div className="flex items-center justify-center p-3 bg-gray-900">
-        <canvas ref={canvasRef} width={width} height={height} className="w-full max-w-4xl" />
+        <canvas
+          ref={canvasRef}
+          width={width}
+          height={height}
+          className="w-full h-full"
+          style={{ maxHeight: "500px", objectFit: "contain" }}
+        />
       </div>
     </div>
   );
 };
 
 export default ClusteringMapPreview;
-

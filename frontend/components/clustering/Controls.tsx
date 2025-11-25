@@ -108,22 +108,11 @@ const Controls: React.FC<ControlsProps> = ({
   return (
     <Card className="bg-gray-800 border border-gray-700">
       <CardHeader>
-        <CardTitle className="text-lg flex items-center justify-between">
+        <CardTitle className="text-lg text-gray-200">
           <span>Controls</span>
-          {onAutoTune && (
-            <button
-              onClick={onAutoTune}
-              disabled={disabled}
-              className="text-xs px-2 py-1 rounded bg-purple-900/50 text-purple-300 hover:bg-purple-800/50 border border-purple-700 flex items-center gap-1 transition-colors"
-              title="Automatically suggest optimal parameters based on your data"
-            >
-              <Sparkles className="w-3 h-3" />
-              Auto-tune
-            </button>
-          )}
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className="space-y-6 h-full flex flex-col">
         {/* Team picker */}
         <div>
           <div className="text-sm text-gray-300 mb-2">Team</div>
@@ -133,8 +122,8 @@ const Controls: React.FC<ControlsProps> = ({
                 onClick={() => onTeamNameChange(teamMapping.CT)}
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
                   selectedTeamName === teamMapping.CT
-                    ? "bg-blue-600 border-blue-500"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
                 {teamMapping.CT}
@@ -145,8 +134,8 @@ const Controls: React.FC<ControlsProps> = ({
                 onClick={() => onTeamNameChange(teamMapping.T)}
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
                   selectedTeamName === teamMapping.T
-                    ? "bg-blue-600 border-blue-500"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
                 {teamMapping.T}
@@ -166,8 +155,8 @@ const Controls: React.FC<ControlsProps> = ({
                   onClick={() => onSideChange(side)}
                   className={`px-3 py-1 rounded text-sm border transition-colors ${
                     selectedSide === side
-                      ? "bg-green-600 border-green-500"
-                      : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                      ? "bg-green-600 border-green-500 text-white"
+                      : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                   }`}
                 >
                   {side}
@@ -186,10 +175,10 @@ const Controls: React.FC<ControlsProps> = ({
               return (
                 <label
                   key={tp}
-                  className={`flex items-center gap-2 px-3 py-1 rounded border text-sm cursor-pointer select-none ${
+                  className={`flex items-center gap-2 px-3 py-1 rounded border text-sm cursor-pointer select-none transition-colors ${
                     active
-                      ? "bg-green-700 border-green-600"
-                      : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                      ? "bg-green-700 border-green-600 text-white"
+                      : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                   }`}
                 >
                   <input
@@ -209,7 +198,9 @@ const Controls: React.FC<ControlsProps> = ({
         <div>
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm text-gray-300">Economy weight</div>
-            <div className="text-xs text-gray-400">{economyWeight.toFixed(2)}</div>
+            <div className="text-xs text-gray-400">
+              {economyWeight.toFixed(2)}
+            </div>
           </div>
           <input
             type="range"
@@ -258,16 +249,40 @@ const Controls: React.FC<ControlsProps> = ({
 
         {/* Reduction method selector */}
         <div className="space-y-2">
-          <div className="text-sm text-gray-300">Dimensionality Reduction</div>
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-300">
+              Dimensionality Reduction
+            </div>
+            {onAutoTune && (
+              <button
+                onClick={() => {
+                  console.log("🎯 Auto-tune button clicked!", {
+                    onAutoTune: typeof onAutoTune,
+                    disabled,
+                  });
+                  if (onAutoTune) onAutoTune();
+                }}
+                disabled={disabled}
+                className="text-xs px-2 py-1 rounded bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600 flex items-center gap-1 transition-colors"
+                title="Automatically suggest optimal parameters based on your data"
+              >
+                <Sparkles className="w-3 h-3" />
+                Auto-tune
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             {["tsne", "umap"].map((m) => (
               <button
                 key={m}
-                onClick={() => onReductionMethodChange && onReductionMethodChange(m as "tsne" | "umap")}
+                onClick={() =>
+                  onReductionMethodChange &&
+                  onReductionMethodChange(m as "tsne" | "umap")
+                }
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
                   reductionMethod === m
-                    ? "bg-purple-600 border-purple-500"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    ? "bg-purple-600 border-purple-500 text-white"
+                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
                 {m.toUpperCase()}
@@ -287,7 +302,10 @@ const Controls: React.FC<ControlsProps> = ({
                 min={5}
                 max={60}
                 value={perplexity}
-                onChange={(e) => onPerplexityChange && onPerplexityChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onPerplexityChange &&
+                  onPerplexityChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -298,7 +316,10 @@ const Controls: React.FC<ControlsProps> = ({
                 min={250}
                 max={4000}
                 value={iterations}
-                onChange={(e) => onIterationsChange && onIterationsChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onIterationsChange &&
+                  onIterationsChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -309,7 +330,10 @@ const Controls: React.FC<ControlsProps> = ({
                 min={10}
                 max={1000}
                 value={learningRate}
-                onChange={(e) => onLearningRateChange && onLearningRateChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onLearningRateChange &&
+                  onLearningRateChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -327,7 +351,10 @@ const Controls: React.FC<ControlsProps> = ({
                 min={2}
                 max={100}
                 value={nNeighbors}
-                onChange={(e) => onNNeighborsChange && onNNeighborsChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onNNeighborsChange &&
+                  onNNeighborsChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -339,7 +366,9 @@ const Controls: React.FC<ControlsProps> = ({
                 min={0.0}
                 max={0.99}
                 value={minDist}
-                onChange={(e) => onMinDistChange && onMinDistChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onMinDistChange && onMinDistChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -350,7 +379,9 @@ const Controls: React.FC<ControlsProps> = ({
                 min={100}
                 max={1000}
                 value={nEpochs}
-                onChange={(e) => onNEpochsChange && onNEpochsChange(Number(e.target.value))}
+                onChange={(e) =>
+                  onNEpochsChange && onNEpochsChange(Number(e.target.value))
+                }
                 className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
               />
             </div>
@@ -364,11 +395,13 @@ const Controls: React.FC<ControlsProps> = ({
             {["kmeans", "dbscan"].map((m) => (
               <button
                 key={m}
-                onClick={() => onClusterMethodChange && onClusterMethodChange(m as any)}
+                onClick={() =>
+                  onClusterMethodChange && onClusterMethodChange(m as any)
+                }
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
                   clusterMethod === m
-                    ? "bg-blue-600 border-blue-500"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
                 {m}
@@ -396,7 +429,9 @@ const Controls: React.FC<ControlsProps> = ({
                   type="number"
                   step={0.05}
                   value={eps}
-                  onChange={(e) => onEpsChange && onEpsChange(Number(e.target.value))}
+                  onChange={(e) =>
+                    onEpsChange && onEpsChange(Number(e.target.value))
+                  }
                   className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
                 />
               </div>
@@ -407,7 +442,9 @@ const Controls: React.FC<ControlsProps> = ({
                   min={2}
                   max={50}
                   value={minPts}
-                  onChange={(e) => onMinPtsChange && onMinPtsChange(Number(e.target.value))}
+                  onChange={(e) =>
+                    onMinPtsChange && onMinPtsChange(Number(e.target.value))
+                  }
                   className="w-24 bg-gray-700 border border-gray-600 rounded px-2 py-1"
                 />
               </div>
@@ -422,11 +459,13 @@ const Controls: React.FC<ControlsProps> = ({
             {["none", "low", "mid", "high"].map((b) => (
               <button
                 key={b}
-                onClick={() => onEconomyBucketChange && onEconomyBucketChange(b as any)}
+                onClick={() =>
+                  onEconomyBucketChange && onEconomyBucketChange(b as any)
+                }
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
                   economyBucket === b
-                    ? "bg-blue-600 border-blue-500"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600"
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
                 {b}
@@ -440,7 +479,12 @@ const Controls: React.FC<ControlsProps> = ({
             Run
           </Button>
           {onPredict && (
-            <Button onClick={onPredict} disabled={disabled} variant="outline" className="w-full">
+            <Button
+              onClick={onPredict}
+              disabled={disabled}
+              variant="outline"
+              className="w-full"
+            >
               Predict Most Likely Setup
             </Button>
           )}
