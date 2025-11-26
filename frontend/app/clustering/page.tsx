@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 import Controls from "@/components/clustering/Controls";
 import DimensionScatter from "@/components/clustering/DimensionScatter";
 import ClusteringMapPreview from "@/components/clustering/ClusteringMapPreview";
@@ -21,11 +22,49 @@ import {
   suggestReductionMethod,
   suggestClusteringMethod,
 } from "@/lib/clustering/autoTune";
+import { Loader2 } from "lucide-react";
+
+const API_URL = "http://localhost:8000";
 
 export default function ClustringPage() {
-  const [loading, setLoading] = useState(true);
+  const [selectedDemoIds, setSelectedDemoIds] = useState<string[]>([]);
+  const [matchDataList, setMatchDataList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [matchData, setMatchData] = useState<any | null>(null);
+
+  // Fetch multiple demos
+  useEffect(() => {
+    if (selectedDemoIds.length === 0) {
+      setMatchDataList([]);
+      return;
+    }
+
+    const fetchDemos = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const promises = selectedDemoIds.map(async (id) => {
+          const response = await fetch(`${API_URL}/demo/${id}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch demo ${id}`);
+          }
+          const result = await response.json();
+          return result.data;
+        });
+
+        const results = await Promise.all(promises);
+        setMatchDataList(results);
+      } catch (err) {
+        console.error("Error fetching demos:", err);
+        setError(err instanceof Error ? err.message : "Unknown error");
+        setMatchDataList([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDemos();
+  }, [selectedDemoIds]);
 
   // Controls state (scaffold only)
   const [selectedTeamName, setSelectedTeamName] = useState<string | null>(null); // Vitality, Mongols, etc.
@@ -60,39 +99,16 @@ export default function ClustringPage() {
   const snapshotsRef = useRef<any[] | null>(null);
   const [previewTimepoint, setPreviewTimepoint] = useState<number | null>(null);
 
-  useEffect(() => {
-    // Load existing JSON, if present; otherwise show empty state
-    const load = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const res = await fetch("/match_data.json");
-        if (!res.ok) {
-          setMatchData(null);
-          setLoading(false);
-          return;
-        }
-        const data = await res.json();
-        setMatchData(data);
-      } catch (e: any) {
-        setError(e?.message || "Failed to load match_data.json");
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
-  }, []);
-
   const mapName: string = useMemo(() => {
-    return matchData?.header?.mapName || "de_ancient";
-  }, [matchData]);
+    return matchDataList?.[0]?.header?.mapName || "de_ancient";
+  }, [matchDataList]);
 
-  // Extract team names from match data
-  const teamMapping = useMemo(() => {
+  // Helper to get team mapping for a single match
+  const getMatchTeamMapping = (match: any) => {
     const teams = { CT: null as string | null, T: null as string | null };
-    if (!matchData?.ticks) return teams;
+    if (!match?.ticks) return teams;
 
-    for (const tick of matchData.ticks) {
+    for (const tick of match.ticks) {
       if (tick.side === "CT" && !teams.CT) {
         teams.CT = tick.team;
       }
@@ -101,50 +117,102 @@ export default function ClustringPage() {
       }
       if (teams.CT && teams.T) break;
     }
-
     return teams;
-  }, [matchData]);
+  };
 
-  const roundTeamAssignments = useMemo(() => {
-    if (!matchData?.rounds || !teamMapping.CT || !teamMapping.T) return {} as Record<number, { CT: string; T: string }>;
-    const roundsPerHalf = matchData?.header?.roundsPerHalf ?? 12;
-    const assignments: Record<number, { CT: string; T: string }> = {};
+  // Helper for case-insensitive string comparison
+  const areTeamNamesEqual = (a: string | null, b: string | null) => {
+    if (!a || !b) return a === b;
+    return a.toLowerCase() === b.toLowerCase();
+  };
 
-    matchData.rounds.forEach((round: any) => {
-      const halfIndex = Math.floor((round.roundNum - 1) / roundsPerHalf);
-      const swapped = halfIndex % 2 === 1; // halves 2,4,... swap sides
-      assignments[round.roundNum] = swapped
-        ? { CT: teamMapping.T!, T: teamMapping.CT! }
-        : { CT: teamMapping.CT!, T: teamMapping.T! };
+  // Extract all unique team names from all matches
+  const availableTeams = useMemo(() => {
+    const teams = new Map<string, string>(); // lowerCase -> displayCase
+    matchDataList.forEach((match: any) => {
+      const mapping = getMatchTeamMapping(match);
+      if (mapping.CT) teams.set(mapping.CT.toLowerCase(), mapping.CT);
+      if (mapping.T) teams.set(mapping.T.toLowerCase(), mapping.T);
     });
+    return Array.from(teams.values());
+  }, [matchDataList]);
 
-    return assignments;
-  }, [matchData, teamMapping]);
+  // Find common teams across all matches
+  const commonTeams = useMemo(() => {
+    if (matchDataList.length === 0) return [];
+    
+    // Get teams for the first match
+    const firstMatch = matchDataList[0];
+    const firstMapping = getMatchTeamMapping(firstMatch);
+    let intersection = new Set<string>();
+    if (firstMapping.CT) intersection.add(firstMapping.CT.toLowerCase());
+    if (firstMapping.T) intersection.add(firstMapping.T.toLowerCase());
 
-  // Initialize selected team when teamMapping is available
-  React.useEffect(() => {
-    if (teamMapping.CT && !selectedTeamName) {
-      setSelectedTeamName(teamMapping.CT);
+    // Intersect with subsequent matches
+    for (let i = 1; i < matchDataList.length; i++) {
+      const match = matchDataList[i];
+      const mapping = getMatchTeamMapping(match);
+      const currentTeams = new Set<string>();
+      if (mapping.CT) currentTeams.add(mapping.CT.toLowerCase());
+      if (mapping.T) currentTeams.add(mapping.T.toLowerCase());
+      
+      // Filter intersection
+      intersection = new Set(
+        [...intersection].filter(x => currentTeams.has(x))
+      );
     }
-  }, [teamMapping, selectedTeamName]);
+    
+    // Map back to display names (using availableTeams map logic or just finding one)
+    const displayNames: string[] = [];
+    intersection.forEach(lowerName => {
+      // Find a display name from availableTeams that matches
+      const match = availableTeams.find(t => t.toLowerCase() === lowerName);
+      if (match) displayNames.push(match);
+    });
+    
+    return displayNames;
+  }, [matchDataList, availableTeams]);
 
-  // Auto-tune when team, side, or economy bucket changes
+  // Initialize selected team when availableTeams is available
+  // Prefer common teams if available
   React.useEffect(() => {
-    if (matchData && selectedTeamName) {
-      handleAutoTune();
+    if (commonTeams.length > 0) {
+      // If current selection is not in common teams (case-insensitive), switch to a common team
+      const isSelectedCommon = selectedTeamName && commonTeams.some(ct => areTeamNamesEqual(ct, selectedTeamName));
+      if (!isSelectedCommon) {
+        setSelectedTeamName(commonTeams[0]);
+      }
+    } else if (availableTeams.length > 0 && !selectedTeamName) {
+      setSelectedTeamName(availableTeams[0]);
     }
-  }, [selectedTeamName, selectedSide, economyBucket, includeEconomy, normalizePositions, relativePositions]);
+  }, [availableTeams, commonTeams, selectedTeamName]);
 
-  // Helper to get team name for a side in a specific round
-  const getTeamNameForRound = (roundNum: number, side: Team): string | null => {
-    const assignment = roundTeamAssignments[roundNum];
-    if (!assignment) return null;
+  // Helper to get team name for a side in a specific round of a match
+  const getTeamNameForRound = (match: any, roundNum: number, side: Team): string | null => {
+    const mapping = getMatchTeamMapping(match);
+    if (!match?.rounds || !mapping.CT || !mapping.T) return null;
+    
+    const roundsPerHalf = match?.header?.roundsPerHalf ?? 12;
+    const halfIndex = Math.floor((roundNum - 1) / roundsPerHalf);
+    const swapped = halfIndex % 2 === 1; // halves 2,4,... swap sides
+    
+    const assignment = swapped
+      ? { CT: mapping.T!, T: mapping.CT! }
+      : { CT: mapping.CT!, T: mapping.T! };
+      
     return assignment[side] || null;
   };
 
+  // Auto-tune when team, side, or economy bucket changes
+  React.useEffect(() => {
+    if (matchDataList.length > 0 && selectedTeamName) {
+      handleAutoTune();
+    }
+  }, [selectedTeamName, selectedSide, economyBucket, includeEconomy, normalizePositions, relativePositions, matchDataList]);
+
   // Auto-tune handler
   const handleAutoTune = () => {
-    if (!matchData) {
+    if (!matchDataList.length) {
       setLogs((prev) => [...prev, "No data loaded - cannot auto-tune parameters"]);
       return;
     }
@@ -153,16 +221,26 @@ export default function ClustringPage() {
     setLogs((prev) => [...prev, "🔮 Auto-tuning parameters..."]);
 
     // Extract data to analyze
-    const allSnaps = extractSnapshots(matchData, { timepoints: [...timepoints] });
-    // Filter by selected team name and side
-    const snaps = selectedTeamName 
-      ? allSnaps.filter(snap => {
-          const teamNameInRound = getTeamNameForRound(snap.roundNum, snap.team);
-          return teamNameInRound === selectedTeamName && snap.team === selectedSide;
-        })
-      : allSnaps.filter(snap => snap.team === selectedSide);
+    let allSnaps: any[] = [];
+    
+    matchDataList.forEach((match) => {
+      const matchSnaps = extractSnapshots(match, { timepoints: [...timepoints] });
+      const filtered = selectedTeamName 
+        ? matchSnaps.filter(snap => {
+            const teamNameInRound = getTeamNameForRound(match, snap.roundNum, snap.team);
+            return areTeamNamesEqual(teamNameInRound, selectedTeamName) && snap.team === selectedSide;
+          })
+        : matchSnaps.filter(snap => snap.team === selectedSide);
+      allSnaps = [...allSnaps, ...filtered];
+    });
+
+    if (allSnaps.length === 0) {
+      setLogs((prev) => [...prev, "No snapshots found for selected criteria."]);
+      return;
+    }
+
     const { matrix } = buildFeatureMatrixWithRegions(
-      snaps,
+      allSnaps,
       [...timepoints],
       {
         economyWeight,
@@ -227,15 +305,32 @@ export default function ClustringPage() {
           <p className="text-gray-400 mt-1">
             Visualize CS2 round strategies using dimensionality reduction (t-SNE or UMAP) and clustering.
           </p>
+          <div className="mt-4 mb-4">
+             <MultiDemoSelector 
+                selectedDemoIds={selectedDemoIds}
+                onDemoSelect={setSelectedDemoIds}
+                disabled={loading}
+             />
+          </div>
           <div className="mt-2 text-sm text-gray-400">
             {loading ? (
-              <span>Loading match_data.json…</span>
-            ) : matchData ? (
-              <span>
-                Loaded {matchData.rounds?.length ?? 0} rounds on {matchData.header?.mapName || "Unknown"}
-              </span>
+              <div className="flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Loading {selectedDemoIds.length} matches...</span>
+              </div>
+            ) : matchDataList.length > 0 ? (
+              <div className="space-y-1">
+                <div>
+                  Loaded {matchDataList.length} matches. Total rounds: {matchDataList.reduce((acc: any, m: any) => acc + (m.rounds?.length || 0), 0)}
+                </div>
+                {commonTeams.length > 0 && (
+                   <div className="text-xs text-green-400">
+                      Common teams found: {commonTeams.join(", ")}
+                   </div>
+                )}
+              </div>
             ) : (
-              <span>No match_data.json found in public. You can still use the scaffold.</span>
+              <span>Select matches to begin analysis.</span>
             )}
             {error && <span className="ml-2 text-red-400">{error}</span>}
           </div>
@@ -248,7 +343,7 @@ export default function ClustringPage() {
               onTeamNameChange={setSelectedTeamName}
               selectedSide={selectedSide}
               onSideChange={setSelectedSide}
-              teamMapping={teamMapping}
+              availableTeams={availableTeams}
               selectedTimepoints={timepoints}
               onToggleTimepoint={(tp) => {
                 setTimepoints((prev) =>
@@ -289,7 +384,7 @@ export default function ClustringPage() {
               onEconomyBucketChange={setEconomyBucket}
               onAutoTune={handleAutoTune}
               onRun={async () => {
-                if (!matchData) return;
+                if (!matchDataList.length) return;
                 if (!timepoints.length) return;
                 setRunning(true);
                 setSelectedCluster(null);
@@ -298,21 +393,31 @@ export default function ClustringPage() {
                 setLogs([]);
 
                 // 1) Extract snapshots
-                const allSnaps = extractSnapshots(matchData, { timepoints: [...timepoints] });
-                // Filter by selected team name and side
-                const snaps = selectedTeamName 
-                  ? allSnaps.filter(snap => {
-                      const teamNameInRound = getTeamNameForRound(snap.roundNum, snap.team);
-                      return teamNameInRound === selectedTeamName && snap.team === selectedSide;
-                    })
-                  : allSnaps.filter(snap => snap.team === selectedSide);
-                snapshotsRef.current = snaps;
+                let allSnaps: any[] = [];
+                matchDataList.forEach((match) => {
+                  const matchSnaps = extractSnapshots(match, { timepoints: [...timepoints] });
+                  const filtered = selectedTeamName 
+                    ? matchSnaps.filter(snap => {
+                        const teamNameInRound = getTeamNameForRound(match, snap.roundNum, snap.team);
+                        return areTeamNamesEqual(teamNameInRound, selectedTeamName) && snap.team === selectedSide;
+                      })
+                    : matchSnaps.filter(snap => snap.team === selectedSide);
+                  allSnaps = [...allSnaps, ...filtered];
+                });
+
+                if (allSnaps.length === 0) {
+                  setLogs((prev) => [...prev, "No snapshots found for selected criteria."]);
+                  setRunning(false);
+                  return;
+                }
+
+                snapshotsRef.current = allSnaps;
                 const tpSorted = [...timepoints].sort((a, b) => a - b);
                 setPreviewTimepoint(tpSorted[0] ?? null);
 
                 // 2) Build feature matrix
                 const { matrix, rows } = buildFeatureMatrixWithRegions(
-                  snaps,
+                  allSnaps,
                   [...timepoints],
                   {
                     economyWeight,
@@ -502,3 +607,4 @@ export default function ClustringPage() {
     </div>
   );
 }
+

@@ -12,7 +12,7 @@ interface ControlsProps {
   onTeamNameChange: (teamName: string | null) => void;
   selectedSide: Team; // CT or T
   onSideChange: (side: Team) => void;
-  teamMapping?: { CT: string | null; T: string | null }; // actual team names from demo
+  availableTeams?: string[]; // List of available team names
   selectedTimepoints: number[];
   onToggleTimepoint: (tp: number) => void;
   economyWeight: number; // 0..1
@@ -63,7 +63,7 @@ const Controls: React.FC<ControlsProps> = ({
   onTeamNameChange,
   selectedSide,
   onSideChange,
-  teamMapping,
+  availableTeams = [],
   selectedTimepoints,
   onToggleTimepoint,
   economyWeight,
@@ -116,30 +116,22 @@ const Controls: React.FC<ControlsProps> = ({
         {/* Team picker */}
         <div>
           <div className="text-sm text-gray-300 mb-2">Team</div>
-          <div className="flex items-center gap-2">
-            {teamMapping?.CT && (
+          <div className="flex flex-wrap gap-2">
+            {availableTeams.map((team) => (
               <button
-                onClick={() => onTeamNameChange(teamMapping.CT)}
+                key={team}
+                onClick={() => onTeamNameChange(team)}
                 className={`px-3 py-1 rounded text-sm border transition-colors ${
-                  selectedTeamName === teamMapping.CT
+                  selectedTeamName === team
                     ? "bg-blue-600 border-blue-500 text-white"
                     : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
                 }`}
               >
-                {teamMapping.CT}
+                {team}
               </button>
-            )}
-            {teamMapping?.T && (
-              <button
-                onClick={() => onTeamNameChange(teamMapping.T)}
-                className={`px-3 py-1 rounded text-sm border transition-colors ${
-                  selectedTeamName === teamMapping.T
-                    ? "bg-blue-600 border-blue-500 text-white"
-                    : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
-                }`}
-              >
-                {teamMapping.T}
-              </button>
+            ))}
+            {availableTeams.length === 0 && (
+              <span className="text-sm text-gray-500">No teams found</span>
             )}
           </div>
         </div>

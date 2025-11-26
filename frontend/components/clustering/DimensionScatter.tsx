@@ -4,8 +4,19 @@ import React, { useMemo } from "react";
 import dynamic from "next/dynamic";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ScatterPoint } from "@/types/clustering";
+import { Loader2 } from "lucide-react";
 
-const Plot = dynamic(() => import("react-plotly.js"), { ssr: false });
+const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center h-[500px] w-full bg-slate-900/50 text-gray-400">
+      <div className="flex flex-col items-center gap-2">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+        <span>Loading Visualization Engine...</span>
+      </div>
+    </div>
+  ),
+});
 
 interface DimensionScatterProps {
   points: ScatterPoint[];
