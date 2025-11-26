@@ -2,10 +2,8 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
-import LineChart from "@/components/distribution/lineChart";
-import Economy from "@/components/distribution/economy";
+import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
 import { DemoSelector } from "@/components/DemoSelector";
-import * as distributionHelpers from "@/lib/distribution";
 
 // Clustering imports
 import Controls from "@/components/clustering/Controls";
@@ -36,8 +34,6 @@ const CS2Dashboard = () => {
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [economyData, setEconomyData] = useState({});
-  const [lineChartData, setLineChartData] = useState([]);
   const [currentRoundContext, setCurrentRoundContext] = useState(1);
 
   // New states for demo selector and WASM parsing
@@ -284,37 +280,6 @@ const CS2Dashboard = () => {
     loadTeamSideHeatmapData();
   }, [selectedDemoId]);
 
-  // Calculate economy data when match data changes
-  useEffect(() => {
-    if (matchData && initialTeamMapping.CT && initialTeamMapping.T) {
-      try {
-        const teamNamesForCalc = {
-          1: initialTeamMapping.CT,
-          2: initialTeamMapping.T,
-        };
-        const calculatedEconomy = distributionHelpers.calculateEconomy(
-          [matchData],
-          teamNamesForCalc
-        );
-        setEconomyData(calculatedEconomy);
-      } catch (error) {
-        console.error("Error calculating economy:", error);
-      }
-    }
-  }, [matchData, initialTeamMapping]);
-
-  // Extract line chart data
-  useEffect(() => {
-    if (!economyData.teams || !economyData.teams[1] || !economyData.teams[2]) {
-      setLineChartData([]);
-      return;
-    }
-    const result = distributionHelpers.extractXYForBothTeams(
-      economyData,
-      "economy"
-    );
-    setLineChartData(result);
-  }, [economyData]);
 
   // Modified file upload handler
   const handleFileUpload = async (event) => {
@@ -892,53 +857,13 @@ const CS2Dashboard = () => {
             setCurrentRoundContext={setCurrentRoundContext}
           />
 
-          {/* Economy Distribution Section */}
-          {economyData.teams && (
-            <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700 h-full flex flex-col">
-              <div className="flex flex-col gap-2 mb-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-xl font-bold flex items-center gap-2">
-                    <DollarSign className="w-5 h-5" />
-                    Economy Distribution
-                  </h3>
-                  {/* Current Round Indicator */}
-                  <div className="flex items-center gap-2 bg-blue-600 px-3 py-1.5 rounded-lg">
-                    <span className="text-xs font-medium text-blue-100">
-                      Round
-                    </span>
-                    <span className="text-lg font-bold text-white">
-                      {currentRoundContext}
-                    </span>
-                  </div>
-                </div>
-                {/* Team Side Legend */}
-                <div className="flex items-center gap-4 text-xs font-medium">
-                  <span className="flex items-center gap-1 text-blue-400">
-                    <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-                    {dynamicTeamMapping.CT || "CT"}
-                  </span>
-                  <span className="flex items-center gap-1 text-red-400">
-                    <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                    {dynamicTeamMapping.T || "T"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Economy Cards */}
-              <div className="mb-4">
-                <Economy
-                  economyData={economyData}
-                  teamNames={teamNames}
-                  teamMapping={dynamicTeamMapping}
-                  staticTeamMapping={initialTeamMapping}
-                />
-              </div>
-
-              {/* Line Chart with Interactive Legend */}
-              <div className="flex-1 min-h-0 overflow-auto">
-                <LineChart seriesData={lineChartData} />
-              </div>
-            </div>
+          {/* Economy & Performance View */}
+          {matchData && initialTeamMapping.CT && initialTeamMapping.T && (
+            <EconomyPerformanceView
+              matchData={matchData}
+              teamMapping={initialTeamMapping}
+              teamNames={teamNames}
+            />
           )}
         </div>
 
