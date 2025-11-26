@@ -1,6 +1,6 @@
 fastapi==0.121.2
 matplotlib==3.10.7
-numpy==2.3.5
+numpy
 Pillow==12.0.0
 pydantic==2.12.4
 Requests==2.32.5
