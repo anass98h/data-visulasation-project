@@ -11,6 +11,17 @@ export const APP_CONFIG = {
   DATA_PATHS: {
     MATCH_DATA: "/match_data.json",
   },
+
+  /**
+   * Backend API configuration
+   */
+  API: {
+    BASE_URL: "http://localhost:8000",
+    ENDPOINTS: {
+      DEMOS: "/demos",
+      DEMO: "/demo",
+    },
+  },
 } as const;
 
 export type AppConfig = typeof APP_CONFIG;
