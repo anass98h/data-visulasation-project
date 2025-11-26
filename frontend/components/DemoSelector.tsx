@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Trash2, RefreshCw, Loader2 } from "lucide-react";
+import { APP_CONFIG } from "@/config/app.config";
 
-const API_URL = "http://localhost:8000";
+const API_URL = APP_CONFIG.API.BASE_URL;
 
 interface Demo {
   demo_id: string;

@@ -3,11 +3,11 @@
 import { APP_CONFIG } from '@/config/app.config';
 
 // function that load the data
-export async function loadMatchData(where: 'file' | 'db') {
+export async function loadMatchData(where: 'file' | 'db', demoId?: string) {
     if (where === 'file') {
         return await loadMatchDataFromFile();
     } else {
-        return await loadMatchDataFromDB();
+        return await loadMatchDataFromDB(demoId);
     }
 }
 
@@ -30,11 +30,45 @@ async function loadMatchDataFromFile() {
     }
 }
 
-// TODO
-async function loadMatchDataFromDB() {
-    // const response = await fetch(config.dataPath);
-    // const data = await response.json();
-    // return data;
+/**
+ * Load match data from backend database
+ * @param demoId - Optional demo ID. If provided, fetches specific demo data. If omitted, fetches all demos metadata.
+ * @returns Demo data object (if demoId provided) or array of demo metadata (if no demoId)
+ */
+async function loadMatchDataFromDB(demoId?: string) {
+    const { API } = APP_CONFIG;
+
+    try {
+        let url: string;
+
+        if (demoId) {
+            // Fetch specific demo by ID
+            url = `${API.BASE_URL}${API.ENDPOINTS.DEMO}/${demoId}`;
+            console.log('📂 Loading demo from DB:', demoId);
+        } else {
+            // Fetch all demos metadata
+            url = `${API.BASE_URL}${API.ENDPOINTS.DEMOS}`;
+            console.log('📂 Loading all demos from DB');
+        }
+
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error(`Failed to fetch data: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+
+        // If fetching specific demo, return just the data field
+        // If fetching all demos, return the demos array
+        const data = demoId ? result.data : result.demos;
+
+        console.log('✅ Data loaded successfully from DB!');
+        return data;
+    } catch (error) {
+        console.error('❌ Error loading data from DB:', error);
+        throw error;
+    }
 }
 
 
