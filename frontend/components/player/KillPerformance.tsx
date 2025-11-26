@@ -203,6 +203,10 @@ export function KillPerformance({
 
           d3.select(this).attr("r", 6);
 
+          const containerRect = containerRef.current!.getBoundingClientRect();
+          const tooltipX = event.clientX - containerRect.left + 10;
+          const tooltipY = event.clientY - containerRect.top - 10;
+
           tooltip
             .style("opacity", 1)
             .html(
@@ -213,8 +217,8 @@ export function KillPerformance({
               <div>Side: <span style="color: ${SIDE_COLORS[side]}">${side}</span></div>
             `
             )
-            .style("left", `${event.pageX - containerRef.current!.getBoundingClientRect().left + 10}px`)
-            .style("top", `${event.pageY - containerRef.current!.getBoundingClientRect().top - 10}px`);
+            .style("left", `${tooltipX}px`)
+            .style("top", `${tooltipY}px`);
         })
         .on("mouseout", function () {
           d3.select(this).attr("r", 4);
