@@ -47,15 +47,23 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
 
     const traces: any[] = [];
     Array.from(groups.entries()).forEach(([clusterId, pts]) => {
-      const color = clusterId === -1 ? "#9ca3af" : palette[clusterId % palette.length];
+      const color =
+        clusterId === -1 ? "#9ca3af" : palette[clusterId % palette.length];
       traces.push({
         x: pts.map((p) => p.x),
         y: pts.map((p) => p.y),
         mode: "markers",
         type: "scattergl",
         name: clusterId === -1 ? "unclustered" : `cluster ${clusterId}`,
-        marker: { size: 8, color, opacity: selectedCluster == null || selectedCluster === clusterId ? 0.9 : 0.25 },
-        text: pts.map((p) => `R${p.roundNum ?? "?"} • ${p.team ?? "?"} • ${p.timepoint ?? "?"}s`),
+        marker: {
+          size: 8,
+          color,
+          opacity:
+            selectedCluster == null || selectedCluster === clusterId
+              ? 0.9
+              : 0.25,
+        },
+        text: pts.map((p) => `R${p.roundNum ?? "?"} • ${p.team ?? "?"}`),
         hoverinfo: "text",
       });
     });
@@ -65,12 +73,22 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
   const layout: any = useMemo(
     () => ({
       paper_bgcolor: "#1f2937",
-      plot_bgcolor: "#111827",
+      plot_bgcolor: "#1f2937",
       margin: { l: 40, r: 20, t: 10, b: 40 },
-      xaxis: { showgrid: true, gridcolor: "#374151", zeroline: false, color: "#e5e7eb" },
-      yaxis: { showgrid: true, gridcolor: "#374151", zeroline: false, color: "#e5e7eb" },
+      xaxis: {
+        showgrid: true,
+        gridcolor: "#374151",
+        zeroline: false,
+        color: "#e5e7eb",
+      },
+      yaxis: {
+        showgrid: true,
+        gridcolor: "#374151",
+        zeroline: false,
+        color: "#e5e7eb",
+      },
       legend: { font: { color: "#e5e7eb" } },
-      height: 360,
+      height: 500,
     }),
     []
   );
@@ -80,33 +98,41 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
   return (
     <Card className="bg-gray-800 border border-gray-700">
       <CardHeader>
-        <CardTitle className="text-lg">{methodLabel} Scatter</CardTitle>
+        <CardTitle className="text-lg text-gray-200">
+          {methodLabel} Scatter
+        </CardTitle>
       </CardHeader>
       <CardContent>
         {points.length === 0 ? (
-          <div className="h-[360px] flex items-center justify-center text-gray-400 text-sm">
+          <div className="h-[500px] flex items-center justify-center text-gray-400 text-sm">
             No data yet — click Run in Controls to populate a placeholder.
           </div>
         ) : (
-          <Plot
-            data={data}
-            layout={layout}
-            config={{ displayModeBar: false }}
-            onClick={(ev: any) => {
-              if (!onSelectCluster) return;
-              const traceIndex: number | undefined = ev?.points?.[0]?.curveNumber;
-              if (traceIndex == null) return;
-              const traceName: string | undefined = (data[traceIndex] as any)?.name;
-              if (!traceName) return;
-              if (traceName === "unclustered") {
-                onSelectCluster(-1);
-              } else {
-                const m = traceName.match(/cluster\s+(\d+)/i);
-                const cid = m ? Number(m[1]) : null;
-                if (cid != null) onSelectCluster(cid);
-              }
-            }}
-          />
+          <div style={{ height: "500px", width: "100%" }}>
+            <Plot
+              data={data}
+              layout={layout}
+              config={{ displayModeBar: false, responsive: true }}
+              useResizeHandler={true}
+              style={{ width: "100%", height: "100%" }}
+              onClick={(ev: any) => {
+                if (!onSelectCluster) return;
+                const traceIndex: number | undefined =
+                  ev?.points?.[0]?.curveNumber;
+                if (traceIndex == null) return;
+                const traceName: string | undefined = (data[traceIndex] as any)
+                  ?.name;
+                if (!traceName) return;
+                if (traceName === "unclustered") {
+                  onSelectCluster(-1);
+                } else {
+                  const m = traceName.match(/cluster\s+(\d+)/i);
+                  const cid = m ? Number(m[1]) : null;
+                  if (cid != null) onSelectCluster(cid);
+                }
+              }}
+            />
+          </div>
         )}
       </CardContent>
     </Card>
