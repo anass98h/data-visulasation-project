@@ -4,6 +4,7 @@ import React from "react";
 import { Card } from "./Card";
 import { KillPerformance } from "./KillPerformance";
 import { transformToChartSeries } from "@/lib/playerPerformanceTransform";
+import { APP_CONFIG } from "@/config/app.config";
 
 interface PlayerGridProps {
   performanceData: any;
@@ -12,10 +13,12 @@ interface PlayerGridProps {
 }
 
 export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
+  const cardHeight = APP_CONFIG.PLAYER_PERFORMANCE.CHART_HEIGHT;
+
   return (
     <div className="grid grid-cols-[1fr_auto_1fr] gap-6">
       {/* Team A - Left Side */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h2 className="text-xl font-bold text-center text-blue-400 mb-4">
           {teamA.name}
         </h2>
@@ -35,6 +38,7 @@ export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
               playerName={player.name}
               teamName={teamA.name}
               align="left"
+              height={cardHeight}
             >
               <KillPerformance
                 playerName={player.name}
@@ -51,7 +55,7 @@ export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
       </div>
 
       {/* Team B - Right Side */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         <h2 className="text-xl font-bold text-center text-red-400 mb-4">
           {teamB.name}
         </h2>
@@ -71,6 +75,7 @@ export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
               playerName={player.name}
               teamName={teamB.name}
               align="right"
+              height={cardHeight}
             >
               <KillPerformance
                 playerName={player.name}

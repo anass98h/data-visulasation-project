@@ -3,11 +3,11 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import type { ChartSeries } from "@/lib/playerPerformanceTransform";
+import { APP_CONFIG } from "@/config/app.config";
 
 interface KillPerformanceProps {
   playerName: string;
   seriesData: ChartSeries[];
-  height?: number;
 }
 
 const SIDE_COLORS = {
@@ -18,7 +18,6 @@ const SIDE_COLORS = {
 export function KillPerformance({
   playerName,
   seriesData,
-  height = 200,
 }: KillPerformanceProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,15 +36,16 @@ export function KillPerformance({
     d3.select(svgRef.current).selectAll("*").remove();
 
     const containerWidth = containerRef.current.clientWidth;
-    const margin = { top: 20, right: 80, bottom: 40, left: 50 };
+    const containerHeight = containerRef.current.clientHeight;
+    const margin = { top: 10, right: 60, bottom: 30, left: 40 };
     const width = containerWidth - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
+    const chartHeight = containerHeight - margin.top - margin.bottom;
 
     // Create SVG
     const svg = d3
       .select(svgRef.current)
       .attr("width", containerWidth)
-      .attr("height", height)
+      .attr("height", containerHeight)
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -102,20 +102,20 @@ export function KillPerformance({
     svg
       .append("text")
       .attr("x", width / 2)
-      .attr("y", chartHeight + 35)
+      .attr("y", chartHeight + margin.bottom - 5)
       .attr("text-anchor", "middle")
       .attr("fill", "#9ca3af")
-      .attr("font-size", "12px")
+      .attr("font-size", "10px")
       .text("Round");
 
     svg
       .append("text")
       .attr("transform", "rotate(-90)")
       .attr("x", -chartHeight / 2)
-      .attr("y", -35)
+      .attr("y", -margin.left + 12)
       .attr("text-anchor", "middle")
       .attr("fill", "#9ca3af")
-      .attr("font-size", "12px")
+      .attr("font-size", "10px")
       .text("Kills");
 
     // Create tooltip
@@ -255,22 +255,19 @@ export function KillPerformance({
     return () => {
       tooltip.remove();
     };
-  }, [seriesData, playerName, height]);
+  }, [seriesData, playerName]);
 
   if (!seriesData || seriesData.length === 0) {
     return (
-      <div
-        className="flex items-center justify-center text-gray-500 text-sm"
-        style={{ height: `${height}px` }}
-      >
+      <div className="flex items-center justify-center text-gray-500 text-sm w-full h-full">
         No data available
       </div>
     );
   }
 
   return (
-    <div ref={containerRef} className="relative w-full">
-      <svg ref={svgRef}></svg>
+    <div ref={containerRef} className="relative w-full h-full">
+      <svg ref={svgRef} className="w-full h-full"></svg>
     </div>
   );
 }
