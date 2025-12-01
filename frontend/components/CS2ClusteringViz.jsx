@@ -1306,14 +1306,16 @@ const CS2Dashboard = () => {
                 side="right"
               />
             </div>
-            <CS2MapRenderer
-              matchData={matchData}
-              heatmapData={heatmapData}
-              teamSideHeatmapData={teamSideHeatmapData}
-              teamMapping={dynamicTeamMapping}
-              staticTeamMapping={initialTeamMapping}
-              setCurrentRoundContext={setCurrentRoundContext}
-            />
+            <div className="overflow-hidden rounded-lg">
+              <CS2MapRenderer
+                matchData={matchData}
+                heatmapData={heatmapData}
+                teamSideHeatmapData={teamSideHeatmapData}
+                teamMapping={dynamicTeamMapping}
+                staticTeamMapping={initialTeamMapping}
+                setCurrentRoundContext={setCurrentRoundContext}
+              />
+            </div>
           </div>
 
           {/* Economy & Performance View */}
