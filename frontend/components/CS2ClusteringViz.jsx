@@ -554,16 +554,27 @@ const CS2Dashboard = () => {
   // Initialize selected team when availableTeams is available
   // Prefer common teams if available
   React.useEffect(() => {
-    if (matchDataList.length > 0) {
-      // Auto-select first common team if available
-      if (commonTeams.length > 0 && !selectedTeamName) {
+    if (matchDataList.length > 0 && commonTeams.length > 0) {
+      // Auto-select first common team if:
+      // 1. No team is selected yet, OR
+      // 2. Current selected team is not in common teams
+      const isSelectedInCommon =
+        selectedTeamName &&
+        commonTeams.some((ct) => areTeamNamesEqual(ct, selectedTeamName));
+
+      if (!selectedTeamName || !isSelectedInCommon) {
+        console.log(`Auto-selecting common team: ${commonTeams[0]}`);
         setSelectedTeamName(commonTeams[0]);
-      } else if (availableTeams.length > 0 && !selectedTeamName) {
-        // Fallback to first available team
-        setSelectedTeamName(availableTeams[0]);
       }
+    } else if (
+      matchDataList.length > 0 &&
+      availableTeams.length > 0 &&
+      !selectedTeamName
+    ) {
+      // Fallback to first available team if no common teams
+      setSelectedTeamName(availableTeams[0]);
     }
-  }, [matchDataList, commonTeams, availableTeams, selectedTeamName]);
+  }, [matchDataList, commonTeams, availableTeams]);
 
   const handleAutoTune = async () => {
     console.log("🔧 handleAutoTune CALLED!", {
@@ -1416,26 +1427,217 @@ const CS2Dashboard = () => {
             </div>
           )}
 
-          {/* Multi-Demo Selector */}
-          <div className="mb-6">
-            <MultiDemoSelector
-              onDemoSelect={setClusteringDemoIds}
-              selectedDemoIds={clusteringDemoIds}
-              disabled={running || loadingClusteringDemos}
-            />
-            {loadingClusteringDemos && (
-              <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
-                <span className="text-sm text-blue-300">
-                  Loading selected demos...
-                </span>
+          {/* Multi-Demo Selector with Analysis Summary */}
+          <div className="mb-6 grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {/* Demo Selector - 2 columns */}
+            <div className="lg:col-span-2">
+              <MultiDemoSelector
+                onDemoSelect={setClusteringDemoIds}
+                selectedDemoIds={clusteringDemoIds}
+                disabled={running || loadingClusteringDemos}
+              />
+              {loadingClusteringDemos && (
+                <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                  <span className="text-sm text-blue-300">
+                    Loading selected demos...
+                  </span>
+                </div>
+              )}
+              {matchDataList.length > 0 && !loadingClusteringDemos && (
+                <div className="mt-3 space-y-2">
+                  {/* Match Stats */}
+                  <div className="flex items-center gap-3 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                    <div className="flex items-center gap-2">
+                      <svg
+                        className="w-4 h-4 text-green-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                        />
+                      </svg>
+                      <span className="text-sm font-medium text-green-300">
+                        {matchDataList.length}{" "}
+                        {matchDataList.length === 1 ? "Match" : "Matches"}
+                      </span>
+                    </div>
+                    <div className="h-4 w-px bg-green-500/30"></div>
+                    <div className="flex items-center gap-1.5">
+                      <svg
+                        className="w-3.5 h-3.5 text-green-400/70"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                        />
+                      </svg>
+                      <span className="text-xs text-green-300/80">
+                        {matchDataList.reduce(
+                          (sum, m) => sum + (m.rounds?.length || 0),
+                          0
+                        )}{" "}
+                        Rounds
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Common Teams */}
+                  {commonTeams.length > 0 && (
+                    <div className="flex items-start gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                      <svg
+                        className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                        />
+                      </svg>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs text-blue-300/70 mb-1">
+                          Common Teams
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {commonTeams.map((team) => (
+                            <span
+                              key={team}
+                              className="px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-300 rounded border border-blue-500/30"
+                            >
+                              {team}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Analysis Summary Panel - 1 column */}
+            <div className="bg-gradient-to-br from-gray-700/40 to-gray-800/40 border border-gray-600 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <svg
+                  className="w-5 h-5 text-blue-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                  />
+                </svg>
+                <h3 className="text-sm font-semibold text-gray-200">
+                  Current Config
+                </h3>
               </div>
-            )}
-            {matchDataList.length > 0 && !loadingClusteringDemos && (
-              <div className="mt-3 space-y-2">
-                {/* Match Stats */}
-                <div className="flex items-center gap-3 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg">
-                  <div className="flex items-center gap-2">
+
+              <div className="space-y-3 text-xs">
+                {/* Selected Team & Side */}
+                {selectedTeamName && (
+                  <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                    <div className="text-gray-400 font-medium mb-2">Target</div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <svg
+                          className="w-3.5 h-3.5 text-blue-400"
+                          fill="currentColor"
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                        </svg>
+                        <span className="text-gray-200 font-medium">
+                          {selectedTeamName}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-2 h-2 rounded-full ${
+                            selectedSide === "CT"
+                              ? "bg-blue-400"
+                              : "bg-orange-400"
+                          }`}
+                        ></div>
+                        <span className="text-gray-300">
+                          {selectedSide} Side
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Algorithm Settings */}
+                <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                  <div className="text-gray-400 font-medium mb-2">
+                    Algorithm
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Reduction:</span>
+                      <span className="text-gray-200 font-mono text-[11px] bg-purple-500/20 px-2 py-0.5 rounded border border-purple-500/30">
+                        {reductionMethod.toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-400">Clustering:</span>
+                      <span className="text-gray-200 font-mono text-[11px] bg-green-500/20 px-2 py-0.5 rounded border border-green-500/30">
+                        {clusterMethod === "kmeans"
+                          ? `K-means (${k})`
+                          : `DBSCAN`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Data Points */}
+                {points.length > 0 && (
+                  <div className="bg-gray-800/50 rounded-lg p-3 border border-gray-700/50">
+                    <div className="text-gray-400 font-medium mb-2">
+                      Results
+                    </div>
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Data Points:</span>
+                        <span className="text-blue-400 font-bold">
+                          {points.length}
+                        </span>
+                      </div>
+                      {labelsRef.current && (
+                        <div className="flex items-center justify-between">
+                          <span className="text-gray-400">Clusters:</span>
+                          <span className="text-green-400 font-bold">
+                            {
+                              new Set(labelsRef.current.filter((l) => l >= 0))
+                                .size
+                            }
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Ready indicator */}
+                {matchDataList.length > 0 && !running && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded-lg border border-green-500/30">
                     <svg
                       className="w-4 h-4 text-green-400"
                       fill="none"
@@ -1449,71 +1651,13 @@ const CS2Dashboard = () => {
                         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                       />
                     </svg>
-                    <span className="text-sm font-medium text-green-300">
-                      {matchDataList.length}{" "}
-                      {matchDataList.length === 1 ? "Match" : "Matches"}
+                    <span className="text-green-400 text-xs font-medium">
+                      Ready
                     </span>
-                  </div>
-                  <div className="h-4 w-px bg-green-500/30"></div>
-                  <div className="flex items-center gap-1.5">
-                    <svg
-                      className="w-3.5 h-3.5 text-green-400/70"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-                      />
-                    </svg>
-                    <span className="text-xs text-green-300/80">
-                      {matchDataList.reduce(
-                        (sum, m) => sum + (m.rounds?.length || 0),
-                        0
-                      )}{" "}
-                      Rounds
-                    </span>
-                  </div>
-                </div>
-
-                {/* Common Teams */}
-                {commonTeams.length > 0 && (
-                  <div className="flex items-start gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <svg
-                      className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth="2"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-xs text-blue-300/70 mb-1">
-                        Common Teams
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {commonTeams.map((team) => (
-                          <span
-                            key={team}
-                            className="px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-300 rounded border border-blue-500/30"
-                          >
-                            {team}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
-            )}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -1592,7 +1736,7 @@ const CS2Dashboard = () => {
 
               {/* Logs below Controls in same column */}
               {logs.length > 0 && (
-                <div className="border border-gray-700 rounded p-3 text-xs max-h-48 overflow-auto">
+                <div className="border border-gray-700 rounded p-3 text-xs max-h-48 overflow-auto custom-scrollbar bg-gray-800/30">
                   {running && (
                     <div className="mb-1 text-gray-400">Running…</div>
                   )}
@@ -1603,6 +1747,25 @@ const CS2Dashboard = () => {
                   ))}
                 </div>
               )}
+
+              {/* Custom scrollbar styles */}
+              <style jsx>{`
+                .custom-scrollbar::-webkit-scrollbar {
+                  width: 6px;
+                  height: 6px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-track {
+                  background: rgba(31, 41, 55, 0.5);
+                  border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb {
+                  background: rgba(75, 85, 99, 0.8);
+                  border-radius: 3px;
+                }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+                  background: rgba(107, 114, 128, 0.9);
+                }
+              `}</style>
             </section>
 
             <section className="lg:col-span-2">
