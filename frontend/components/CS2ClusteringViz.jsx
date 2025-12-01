@@ -84,6 +84,7 @@ const CS2Dashboard = () => {
   const [clusteringDemoIds, setClusteringDemoIds] = useState([]);
   const [matchDataList, setMatchDataList] = useState([]);
   const [loadingClusteringDemos, setLoadingClusteringDemos] = useState(false);
+  const [demoNamesMap, setDemoNamesMap] = useState({});
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -166,6 +167,22 @@ const CS2Dashboard = () => {
 
     return displayNames;
   }, [matchDataList, availableTeams]);
+
+  // Helper to get team name for a side in a specific round of a match
+  const getTeamNameForRound = (match, roundNum, side) => {
+    const mapping = getMatchTeamMapping(match);
+    if (!match?.rounds || !mapping.CT || !mapping.T) return null;
+
+    const roundsPerHalf = match?.header?.roundsPerHalf ?? 12;
+    const halfIndex = Math.floor((roundNum - 1) / roundsPerHalf);
+    const swapped = halfIndex % 2 === 1; // halves 2,4,... swap sides
+
+    const assignment = swapped
+      ? { CT: mapping.T, T: mapping.CT }
+      : { CT: mapping.CT, T: mapping.T };
+
+    return assignment[side] || null;
+  };
 
   // Initialize WASM worker
   useEffect(() => {
@@ -278,12 +295,28 @@ const CS2Dashboard = () => {
   useEffect(() => {
     if (clusteringDemoIds.length === 0) {
       setMatchDataList([]);
+      setDemoNamesMap({});
       return;
     }
 
     const fetchClusteringDemos = async () => {
       setLoadingClusteringDemos(true);
       try {
+        // First fetch demo metadata to get names
+        const metadataResponse = await fetch(`${API_URL}/demos`);
+        const metadataResult = await metadataResponse.json();
+        const allDemos = metadataResult.demos || [];
+
+        // Create mapping from demoId to demo name
+        const namesMapping = {};
+        clusteringDemoIds.forEach((id, index) => {
+          const demo = allDemos.find((d) => d.demo_id === id);
+          namesMapping[index] =
+            demo?.demo_name || demo?.demo_id || `Demo${index}`;
+        });
+        setDemoNamesMap(namesMapping);
+
+        // Then fetch the actual demo data
         const promises = clusteringDemoIds.map(async (id) => {
           const response = await fetch(`${API_URL}/demo/${id}`);
           if (!response.ok) {
@@ -298,6 +331,7 @@ const CS2Dashboard = () => {
       } catch (err) {
         console.error("Error fetching clustering demos:", err);
         setMatchDataList([]);
+        setDemoNamesMap({});
       } finally {
         setLoadingClusteringDemos(false);
       }
@@ -504,22 +538,23 @@ const CS2Dashboard = () => {
     return assignments;
   }, [matchData, initialTeamMapping]);
 
-  const getTeamNameForRound = (roundNum, side) => {
-    const assignment = roundTeamAssignments[roundNum];
-    if (!assignment) return null;
-    return assignment[side] || null;
-  };
-
   const mapName = useMemo(() => {
     return matchData?.header?.mapName || "de_ancient";
   }, [matchData]);
 
-  // Initialize selected team when teamMapping is available
-  useEffect(() => {
-    if (initialTeamMapping.CT && !selectedTeamName) {
-      setSelectedTeamName(initialTeamMapping.CT);
+  // Initialize selected team when availableTeams is available
+  // Prefer common teams if available
+  React.useEffect(() => {
+    if (matchDataList.length > 0) {
+      // Auto-select first common team if available
+      if (commonTeams.length > 0 && !selectedTeamName) {
+        setSelectedTeamName(commonTeams[0]);
+      } else if (availableTeams.length > 0 && !selectedTeamName) {
+        // Fallback to first available team
+        setSelectedTeamName(availableTeams[0]);
+      }
     }
-  }, [initialTeamMapping, selectedTeamName]);
+  }, [matchDataList, commonTeams, availableTeams, selectedTeamName]);
 
   const handleAutoTune = async () => {
     console.log("🔧 handleAutoTune CALLED!", {
@@ -694,24 +729,37 @@ const CS2Dashboard = () => {
           console.log("First raw snapshot:", demoSnaps[0]);
         }
 
-        // Filter snapshots based on team and side selection
-        let filteredSnaps = demoSnaps;
+        // Filter snapshots: first by side, then optionally by team
+        let filteredSnaps = demoSnaps.filter(
+          (snap) => snap.team === selectedSide
+        );
 
-        // If a specific team is selected, filter by team name
+        console.log(
+          `Demo ${demoIndex}: ${demoSnaps.length} total snaps, ${filteredSnaps.length} for ${selectedSide} side`
+        );
+
+        // If a specific team is selected, check if that team was playing on this side
         if (selectedTeamName) {
-          const matchMapping = getMatchTeamMapping(demoData);
-          filteredSnaps = demoSnaps.filter((snap) => {
-            const teamOnSide =
-              snap.team === "CT" ? matchMapping.CT : matchMapping.T;
-            return (
-              areTeamNamesEqual(teamOnSide, selectedTeamName) &&
-              snap.team === selectedSide
+          console.log(
+            `Looking for team: ${selectedTeamName} on side: ${selectedSide}`
+          );
+
+          const beforeTeamFilter = filteredSnaps.length;
+          filteredSnaps = filteredSnaps.filter((snap) => {
+            // Use getTeamNameForRound to account for side switching
+            const teamNameInRound = getTeamNameForRound(
+              demoData,
+              snap.roundNum,
+              snap.team
             );
+            const matches = areTeamNamesEqual(
+              teamNameInRound,
+              selectedTeamName
+            );
+            return matches;
           });
-        } else {
-          // Just filter by side
-          filteredSnaps = demoSnaps.filter(
-            (snap) => snap.team === selectedSide
+          console.log(
+            `After team filter: ${beforeTeamFilter} -> ${filteredSnaps.length} snaps`
           );
         }
 
@@ -803,6 +851,19 @@ const CS2Dashboard = () => {
         }
       });
 
+      console.log(
+        "Mapping sample:",
+        Array.from(roundNumMapping.entries()).slice(0, 5)
+      );
+      console.log(
+        "Rows after restoration:",
+        rows.slice(0, 5).map((r) => ({
+          roundNum: r.roundNum,
+          originalRoundNum: r.originalRoundNum,
+          demoIndex: r.demoIndex,
+        }))
+      );
+
       rowsRef.current = rows;
 
       console.log(
@@ -843,17 +904,26 @@ const CS2Dashboard = () => {
 
           labelsRef.current = result.labels || null;
           const tp0 = [...timepoints].sort((a, b) => a - b)[0];
-          const pts = result.embedding.map((p, i) => ({
-            x: p[0],
-            y: p[1],
-            cluster: result.labels ? result.labels[i] : undefined,
-            roundNum: rows[i]?.roundNum,
-            team: rows[i]?.team,
-            timepoint: tp0,
-            demoId: rows[i]?.demoId,
-            demoIndex: rows[i]?.demoIndex,
-            uniqueRoundId: rows[i]?.uniqueRoundId,
-          }));
+          const pts = result.embedding.map((p, i) => {
+            const modifiedRoundNum = rows[i]?.roundNum || 0;
+            // Calculate original round number and demo index from modified value
+            const demoIdx = Math.floor(modifiedRoundNum / 10000);
+            const originalRound = modifiedRoundNum % 10000;
+
+            return {
+              x: p[0],
+              y: p[1],
+              cluster: result.labels ? result.labels[i] : undefined,
+              roundNum: modifiedRoundNum,
+              originalRoundNum: originalRound,
+              team: rows[i]?.team,
+              timepoint: tp0,
+              demoId: rows[i]?.demoId,
+              demoIndex: demoIdx,
+              demoName: demoNamesMap[demoIdx] || `Demo${demoIdx}`,
+              uniqueRoundId: rows[i]?.uniqueRoundId,
+            };
+          });
           console.log(`Created ${pts.length} points from UMAP`);
           console.log(
             "Sample points with roundNum info:",
@@ -884,17 +954,26 @@ const CS2Dashboard = () => {
             } else if (type === "result") {
               labelsRef.current = labels || null;
               const tp0 = [...timepoints].sort((a, b) => a - b)[0];
-              const pts = (embedding || []).map((p, i) => ({
-                x: p[0],
-                y: p[1],
-                cluster: labels ? labels[i] : undefined,
-                roundNum: rows[i]?.roundNum,
-                team: rows[i]?.team,
-                timepoint: tp0,
-                demoId: rows[i]?.demoId,
-                demoIndex: rows[i]?.demoIndex,
-                uniqueRoundId: rows[i]?.uniqueRoundId,
-              }));
+              const pts = (embedding || []).map((p, i) => {
+                const modifiedRoundNum = rows[i]?.roundNum || 0;
+                // Calculate original round number and demo index from modified value
+                const demoIdx = Math.floor(modifiedRoundNum / 10000);
+                const originalRound = modifiedRoundNum % 10000;
+
+                return {
+                  x: p[0],
+                  y: p[1],
+                  cluster: labels ? labels[i] : undefined,
+                  roundNum: modifiedRoundNum,
+                  originalRoundNum: originalRound,
+                  team: rows[i]?.team,
+                  timepoint: tp0,
+                  demoId: rows[i]?.demoId,
+                  demoIndex: demoIdx,
+                  demoName: demoNamesMap[demoIdx] || `Demo${demoIdx}`,
+                  uniqueRoundId: rows[i]?.uniqueRoundId,
+                };
+              });
               console.log(`Created ${pts.length} points from t-SNE`);
               console.log(
                 "Sample points with roundNum info:",
@@ -905,6 +984,18 @@ const CS2Dashboard = () => {
                   cluster: p.cluster,
                 }))
               );
+
+              // Check for missing originalRoundNum
+              const missingOriginal = pts.filter(
+                (p) => p.originalRoundNum == null
+              );
+              if (missingOriginal.length > 0) {
+                console.warn(
+                  `${missingOriginal.length} points missing originalRoundNum!`,
+                  missingOriginal.slice(0, 3)
+                );
+              }
+
               setPoints(pts);
               setRunning(false);
             }
@@ -1157,14 +1248,94 @@ const CS2Dashboard = () => {
               disabled={running || loadingClusteringDemos}
             />
             {loadingClusteringDemos && (
-              <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
-                <span>Loading selected demos...</span>
+              <div className="mt-3 flex items-center gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-400 border-t-transparent"></div>
+                <span className="text-sm text-blue-300">
+                  Loading selected demos...
+                </span>
               </div>
             )}
             {matchDataList.length > 0 && !loadingClusteringDemos && (
-              <div className="mt-2 text-sm text-green-400">
-                ✓ {matchDataList.length} demo(s) loaded and ready
+              <div className="mt-3 space-y-2">
+                {/* Match Stats */}
+                <div className="flex items-center gap-3 px-3 py-2 bg-green-500/10 border border-green-500/30 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <svg
+                      className="w-4 h-4 text-green-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <span className="text-sm font-medium text-green-300">
+                      {matchDataList.length}{" "}
+                      {matchDataList.length === 1 ? "Match" : "Matches"}
+                    </span>
+                  </div>
+                  <div className="h-4 w-px bg-green-500/30"></div>
+                  <div className="flex items-center gap-1.5">
+                    <svg
+                      className="w-3.5 h-3.5 text-green-400/70"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                      />
+                    </svg>
+                    <span className="text-xs text-green-300/80">
+                      {matchDataList.reduce(
+                        (sum, m) => sum + (m.rounds?.length || 0),
+                        0
+                      )}{" "}
+                      Rounds
+                    </span>
+                  </div>
+                </div>
+
+                {/* Common Teams */}
+                {commonTeams.length > 0 && (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <svg
+                      className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-blue-300/70 mb-1">
+                        Common Teams
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {commonTeams.map((team) => (
+                          <span
+                            key={team}
+                            className="px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-300 rounded border border-blue-500/30"
+                          >
+                            {team}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

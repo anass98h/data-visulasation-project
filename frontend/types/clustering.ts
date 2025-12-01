@@ -33,6 +33,7 @@ export interface ScatterPoint {
   demoId?: string; // NEW
   demoIndex?: number; // NEW
   uniqueRoundId?: string; // NEW
+  demoName?: string; // NEW
 }
 
 export interface WorkerRequest {

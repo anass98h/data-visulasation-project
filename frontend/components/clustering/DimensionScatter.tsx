@@ -79,7 +79,11 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
         },
         text: pts.map((p) => {
           const roundNum = p.originalRoundNum ?? p.roundNum ?? "?";
-          const demoInfo = p.demoIndex != null ? ` • Demo${p.demoIndex}` : "";
+          const demoInfo = p.demoName
+            ? ` • ${p.demoName}`
+            : p.demoIndex != null
+            ? ` • Demo${p.demoIndex}`
+            : "";
           return `R${roundNum}${demoInfo} • ${p.team ?? "?"}`;
         }),
         hoverinfo: "text",
