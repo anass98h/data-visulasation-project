@@ -1,6 +1,13 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
+import {
+  TrendingUp,
+  Target,
+  Clock,
+  Upload,
+  DollarSign,
+  HelpCircle,
+} from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
 import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
 import { DemoSelector } from "@/components/DemoSelector";
@@ -10,6 +17,7 @@ import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 import Controls from "@/components/clustering/Controls";
 import DimensionScatter from "@/components/clustering/DimensionScatter";
 import ClusteringMapPreview from "@/components/clustering/ClusteringMapPreview";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import { DEFAULT_TIMEPOINTS } from "@/config/clustering.config";
 import { extractSnapshots } from "@/lib/clustering/extractSnapshots";
 import { buildFeatureMatrixWithRegions } from "@/lib/clustering/features_plus";
@@ -85,6 +93,7 @@ const CS2Dashboard = () => {
   const [matchDataList, setMatchDataList] = useState([]);
   const [loadingClusteringDemos, setLoadingClusteringDemos] = useState(false);
   const [demoNamesMap, setDemoNamesMap] = useState({});
+  const [showQuickGuide, setShowQuickGuide] = useState(false);
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -1211,34 +1220,121 @@ const CS2Dashboard = () => {
         {/* Map Renderer and Economy side by side */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Map Renderer with Heatmap */}
-          <CS2MapRenderer
-            matchData={matchData}
-            heatmapData={heatmapData}
-            teamSideHeatmapData={teamSideHeatmapData}
-            teamMapping={dynamicTeamMapping}
-            staticTeamMapping={initialTeamMapping}
-            setCurrentRoundContext={setCurrentRoundContext}
-          />
+          <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
+            <div className="flex items-center gap-2 mb-3">
+              <h2 className="text-xl font-bold text-white">Player Heatmap</h2>
+              <InfoTooltip
+                content="Visualize player positions and movement patterns across all rounds. Use filters to show specific teams, sides, or round ranges. Click 'Show Heatmap' to display death locations and hot zones on the map."
+                side="right"
+              />
+            </div>
+            <CS2MapRenderer
+              matchData={matchData}
+              heatmapData={heatmapData}
+              teamSideHeatmapData={teamSideHeatmapData}
+              teamMapping={dynamicTeamMapping}
+              staticTeamMapping={initialTeamMapping}
+              setCurrentRoundContext={setCurrentRoundContext}
+            />
+          </div>
 
           {/* Economy & Performance View */}
           {matchData && initialTeamMapping.CT && initialTeamMapping.T && (
-            <EconomyPerformanceView
-              matchData={matchData}
-              teamMapping={initialTeamMapping}
-              teamNames={teamNames}
-            />
+            <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
+              <div className="flex items-center gap-2 mb-3">
+                <h2 className="text-xl font-bold text-white">
+                  Economy & Performance
+                </h2>
+                <InfoTooltip
+                  content="Track team economy, equipment value, and round outcomes over time. View money spent, weapons bought, and correlations between economy and round wins. Analyze how economic advantages translate to tactical success."
+                  side="right"
+                />
+              </div>
+              <EconomyPerformanceView
+                matchData={matchData}
+                teamMapping={initialTeamMapping}
+                teamNames={teamNames}
+              />
+            </div>
           )}
         </div>
 
         {/* Clustering Analysis Section */}
         <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
-          <h2 className="text-2xl font-bold mb-2 text-white">
-            Clustering Analysis
-          </h2>
-          <p className="text-gray-400 mb-4 text-sm">
-            Visualize CS2 round strategies using dimensionality reduction (t-SNE
-            or UMAP) and clustering.
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <h2 className="text-2xl font-bold text-white">
+                Clustering Analysis
+              </h2>
+              <InfoTooltip content="Analyze tactical patterns by grouping similar round strategies. Select demos, choose a team and side, then run the analysis to see strategy clusters visualized on a 2D plot." />
+            </div>
+            <button
+              onClick={() => setShowQuickGuide(!showQuickGuide)}
+              className="flex items-center gap-2 px-3 py-1.5 text-sm text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg border border-blue-500/30 transition-colors"
+            >
+              <HelpCircle className="w-4 h-4" />
+              {showQuickGuide ? "Hide Guide" : "Show Guide"}
+            </button>
+          </div>
+          <div className="text-gray-400 mb-4 text-sm flex items-center gap-2 flex-wrap">
+            <span>Visualize CS2 round strategies using</span>
+            <span className="inline-flex items-center gap-1">
+              <span>dimensionality reduction</span>
+              <InfoTooltip
+                content="t-SNE and UMAP reduce high-dimensional player position data to 2D plots. t-SNE preserves local structure (similar rounds stay close). UMAP preserves both local and global structure. Start with t-SNE."
+                side="bottom"
+              />
+            </span>
+            <span>and</span>
+            <span className="inline-flex items-center gap-1">
+              <span>clustering</span>
+              <InfoTooltip
+                content="K-means groups rounds into K clusters. DBSCAN finds clusters of varying sizes automatically. K-means is faster and requires setting K (number of clusters). DBSCAN handles noise better."
+                side="bottom"
+              />
+            </span>
+          </div>
+
+          {/* Quick Guide - Collapsible */}
+          {showQuickGuide && (
+            <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+              <div className="flex items-start gap-3">
+                <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+                <div className="space-y-2 text-sm text-gray-300">
+                  <p className="font-semibold text-blue-300 text-base">
+                    Quick Guide:
+                  </p>
+                  <ol className="list-decimal list-inside space-y-2">
+                    <li className="leading-relaxed">
+                      <strong className="text-gray-200">Select demos</strong> -
+                      Choose one or more matches to analyze together
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-gray-200">
+                        Pick team & side
+                      </strong>{" "}
+                      - Select which team's CT or T strategies to study
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-gray-200">Adjust settings</strong>{" "}
+                      - Configure timepoints, clustering method, and reduction
+                      technique
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-gray-200">Run analysis</strong> -
+                      Click "Run" to generate the visualization
+                    </li>
+                    <li className="leading-relaxed">
+                      <strong className="text-gray-200">
+                        Explore clusters
+                      </strong>{" "}
+                      - Click colored points to see representative setups
+                    </li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Multi-Demo Selector */}
           <div className="mb-6">
@@ -1342,6 +1438,17 @@ const CS2Dashboard = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="space-y-4">
+              {/* Team & Side Selection */}
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-sm font-semibold text-gray-200">
+                  Analysis Parameters
+                </h3>
+                <InfoTooltip
+                  content="Choose which team and side (CT/T) to analyze. Teams automatically swap sides at halftime. Timepoints determine when during each round to capture player positions."
+                  side="right"
+                />
+              </div>
+
               <Controls
                 selectedTeamName={selectedTeamName}
                 onTeamNameChange={setSelectedTeamName}
@@ -1420,6 +1527,15 @@ const CS2Dashboard = () => {
 
             <section className="lg:col-span-2">
               <div className="mb-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className="text-sm font-semibold text-gray-200">
+                    Strategy Clusters
+                  </h3>
+                  <InfoTooltip
+                    content="Each point represents a round. Points close together are similar strategies. Click a cluster to see the representative setup on the map below. Colors represent different strategy groups."
+                    side="right"
+                  />
+                </div>
                 <DimensionScatter
                   points={points}
                   selectedCluster={selectedCluster}
@@ -1461,6 +1577,10 @@ const CS2Dashboard = () => {
                 />
                 <div className="mt-3 flex items-center gap-2 text-sm text-gray-300">
                   <span>Preview timepoint:</span>
+                  <InfoTooltip
+                    content="Choose which round time (in seconds) to visualize on the map. Different timepoints show how the strategy evolves during a round."
+                    side="right"
+                  />
                   <div className="flex flex-wrap gap-2">
                     {[...timepoints]
                       .sort((a, b) => a - b)
