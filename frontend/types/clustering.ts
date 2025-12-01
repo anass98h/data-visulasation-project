@@ -27,8 +27,12 @@ export interface ScatterPoint {
   y: number;
   cluster?: number;
   roundNum?: number;
-  timepoint?: number;
+  originalRoundNum?: number; // NEW
   team?: Team;
+  timepoint?: number;
+  demoId?: string; // NEW
+  demoIndex?: number; // NEW
+  uniqueRoundId?: string; // NEW
 }
 
 export interface WorkerRequest {
@@ -44,4 +48,3 @@ export interface WorkerResponse {
   message?: string;
   error?: string;
 }
-

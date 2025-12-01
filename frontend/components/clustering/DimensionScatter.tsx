@@ -6,17 +6,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { ScatterPoint } from "@/types/clustering";
 import { Loader2 } from "lucide-react";
 
-const Plot = dynamic(() => import("react-plotly.js").then((mod) => mod.default), {
-  ssr: false,
-  loading: () => (
-    <div className="flex items-center justify-center h-[500px] w-full bg-slate-900/50 text-gray-400">
-      <div className="flex flex-col items-center gap-2">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        <span>Loading Visualization Engine...</span>
+const Plot = dynamic(
+  () => import("react-plotly.js").then((mod) => mod.default),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex items-center justify-center h-[500px] w-full bg-slate-900/50 text-gray-400">
+        <div className="flex flex-col items-center gap-2">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+          <span>Loading Visualization Engine...</span>
+        </div>
       </div>
-    </div>
-  ),
-});
+    ),
+  }
+);
 
 interface DimensionScatterProps {
   points: ScatterPoint[];
@@ -74,7 +77,11 @@ const DimensionScatter: React.FC<DimensionScatterProps> = ({
               ? 0.9
               : 0.25,
         },
-        text: pts.map((p) => `R${p.roundNum ?? "?"} • ${p.team ?? "?"}`),
+        text: pts.map((p) => {
+          const roundNum = p.originalRoundNum ?? p.roundNum ?? "?";
+          const demoInfo = p.demoIndex != null ? ` • Demo${p.demoIndex}` : "";
+          return `R${roundNum}${demoInfo} • ${p.team ?? "?"}`;
+        }),
         hoverinfo: "text",
       });
     });

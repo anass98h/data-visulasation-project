@@ -45,15 +45,29 @@ const TSNEScatter: React.FC<TSNEScatterProps> = ({
 
     const traces: any[] = [];
     Array.from(groups.entries()).forEach(([clusterId, pts]) => {
-      const color = clusterId === -1 ? "#9ca3af" : palette[clusterId % palette.length];
+      const color =
+        clusterId === -1 ? "#9ca3af" : palette[clusterId % palette.length];
       traces.push({
         x: pts.map((p) => p.x),
         y: pts.map((p) => p.y),
         mode: "markers",
         type: "scattergl",
         name: clusterId === -1 ? "unclustered" : `cluster ${clusterId}`,
-        marker: { size: 8, color, opacity: selectedCluster == null || selectedCluster === clusterId ? 0.9 : 0.25 },
-        text: pts.map((p) => `R${p.roundNum ?? "?"} • ${p.team ?? "?"} • ${p.timepoint ?? "?"}s`),
+        marker: {
+          size: 8,
+          color,
+          opacity:
+            selectedCluster == null || selectedCluster === clusterId
+              ? 0.9
+              : 0.25,
+        },
+        text: pts.map((p) => {
+          const roundNum = p.originalRoundNum ?? p.roundNum ?? "?";
+          const demoInfo = p.demoIndex != null ? ` • Demo${p.demoIndex}` : "";
+          return `R${roundNum}${demoInfo} • ${p.team ?? "?"} • ${
+            p.timepoint ?? "?"
+          }s`;
+        }),
         hoverinfo: "text",
       });
     });
@@ -65,8 +79,18 @@ const TSNEScatter: React.FC<TSNEScatterProps> = ({
       paper_bgcolor: "#1f2937",
       plot_bgcolor: "#111827",
       margin: { l: 40, r: 20, t: 10, b: 40 },
-      xaxis: { showgrid: true, gridcolor: "#374151", zeroline: false, color: "#e5e7eb" },
-      yaxis: { showgrid: true, gridcolor: "#374151", zeroline: false, color: "#e5e7eb" },
+      xaxis: {
+        showgrid: true,
+        gridcolor: "#374151",
+        zeroline: false,
+        color: "#e5e7eb",
+      },
+      yaxis: {
+        showgrid: true,
+        gridcolor: "#374151",
+        zeroline: false,
+        color: "#e5e7eb",
+      },
       legend: { font: { color: "#e5e7eb" } },
       height: 360,
     }),
@@ -90,9 +114,11 @@ const TSNEScatter: React.FC<TSNEScatterProps> = ({
             config={{ displayModeBar: false }}
             onClick={(ev: any) => {
               if (!onSelectCluster) return;
-              const traceIndex: number | undefined = ev?.points?.[0]?.curveNumber;
+              const traceIndex: number | undefined =
+                ev?.points?.[0]?.curveNumber;
               if (traceIndex == null) return;
-              const traceName: string | undefined = (data[traceIndex] as any)?.name;
+              const traceName: string | undefined = (data[traceIndex] as any)
+                ?.name;
               if (!traceName) return;
               if (traceName === "unclustered") {
                 onSelectCluster(-1);
@@ -110,4 +136,3 @@ const TSNEScatter: React.FC<TSNEScatterProps> = ({
 };
 
 export default TSNEScatter;
-

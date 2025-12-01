@@ -4,6 +4,7 @@ import { TrendingUp, Target, Clock, Upload, DollarSign } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
 import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
 import { DemoSelector } from "@/components/DemoSelector";
+import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 
 // Clustering imports
 import Controls from "@/components/clustering/Controls";
@@ -80,6 +81,9 @@ const CS2Dashboard = () => {
   const rowsRef = useRef(null);
   const snapshotsRef = useRef(null);
   const [previewTimepoint, setPreviewTimepoint] = useState(null);
+  const [clusteringDemoIds, setClusteringDemoIds] = useState([]);
+  const [matchDataList, setMatchDataList] = useState([]);
+  const [loadingClusteringDemos, setLoadingClusteringDemos] = useState(false);
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -97,6 +101,71 @@ const CS2Dashboard = () => {
 
     return teams;
   }, [matchData]);
+
+  // Helper to get team mapping for a single match (for clustering)
+  const getMatchTeamMapping = (match) => {
+    const teams = { CT: null, T: null };
+    if (!match?.ticks) return teams;
+
+    for (const tick of match.ticks) {
+      if (tick.side === "CT" && !teams.CT) {
+        teams.CT = tick.team;
+      }
+      if (tick.side === "T" && !teams.T) {
+        teams.T = tick.team;
+      }
+      if (teams.CT && teams.T) break;
+    }
+    return teams;
+  };
+
+  // Helper for case-insensitive string comparison
+  const areTeamNamesEqual = (a, b) => {
+    if (!a || !b) return a === b;
+    return a.toLowerCase() === b.toLowerCase();
+  };
+
+  // Extract all unique team names from clustering matches
+  const availableTeams = useMemo(() => {
+    const teams = new Map(); // lowerCase -> displayCase
+    matchDataList.forEach((match) => {
+      const mapping = getMatchTeamMapping(match);
+      if (mapping.CT) teams.set(mapping.CT.toLowerCase(), mapping.CT);
+      if (mapping.T) teams.set(mapping.T.toLowerCase(), mapping.T);
+    });
+    return Array.from(teams.values());
+  }, [matchDataList]);
+
+  // Find common teams across all clustering matches
+  const commonTeams = useMemo(() => {
+    if (matchDataList.length === 0) return [];
+
+    const firstMatch = matchDataList[0];
+    const firstMapping = getMatchTeamMapping(firstMatch);
+    let intersection = new Set();
+    if (firstMapping.CT) intersection.add(firstMapping.CT.toLowerCase());
+    if (firstMapping.T) intersection.add(firstMapping.T.toLowerCase());
+
+    for (let i = 1; i < matchDataList.length; i++) {
+      const match = matchDataList[i];
+      const mapping = getMatchTeamMapping(match);
+      const currentTeams = new Set();
+      if (mapping.CT) currentTeams.add(mapping.CT.toLowerCase());
+      if (mapping.T) currentTeams.add(mapping.T.toLowerCase());
+
+      intersection = new Set(
+        [...intersection].filter((x) => currentTeams.has(x))
+      );
+    }
+
+    const displayNames = [];
+    intersection.forEach((lowerName) => {
+      const match = availableTeams.find((t) => t.toLowerCase() === lowerName);
+      if (match) displayNames.push(match);
+    });
+
+    return displayNames;
+  }, [matchDataList, availableTeams]);
 
   // Initialize WASM worker
   useEffect(() => {
@@ -205,6 +274,38 @@ const CS2Dashboard = () => {
     };
   }, []);
 
+  // Fetch clustering demos when selection changes
+  useEffect(() => {
+    if (clusteringDemoIds.length === 0) {
+      setMatchDataList([]);
+      return;
+    }
+
+    const fetchClusteringDemos = async () => {
+      setLoadingClusteringDemos(true);
+      try {
+        const promises = clusteringDemoIds.map(async (id) => {
+          const response = await fetch(`${API_URL}/demo/${id}`);
+          if (!response.ok) {
+            throw new Error(`Failed to fetch demo ${id}`);
+          }
+          const result = await response.json();
+          return result.data;
+        });
+
+        const results = await Promise.all(promises);
+        setMatchDataList(results);
+      } catch (err) {
+        console.error("Error fetching clustering demos:", err);
+        setMatchDataList([]);
+      } finally {
+        setLoadingClusteringDemos(false);
+      }
+    };
+
+    fetchClusteringDemos();
+  }, [clusteringDemoIds]);
+
   // Load demo from backend when selected
   useEffect(() => {
     if (!selectedDemoId) return;
@@ -279,7 +380,6 @@ const CS2Dashboard = () => {
     loadHeatmapData();
     loadTeamSideHeatmapData();
   }, [selectedDemoId]);
-
 
   // Modified file upload handler
   const handleFileUpload = async (event) => {
@@ -421,150 +521,64 @@ const CS2Dashboard = () => {
     }
   }, [initialTeamMapping, selectedTeamName]);
 
-  const handleAutoTune = () => {
+  const handleAutoTune = async () => {
     console.log("🔧 handleAutoTune CALLED!", {
-      matchData: !!matchData,
-      selectedTeamName,
+      matchDataList: matchDataList.length,
       selectedSide,
     });
-    if (!matchData) {
-      setLogs((prev) => [
-        ...prev,
-        "No data loaded - cannot auto-tune parameters",
-      ]);
+
+    if (matchDataList.length === 0) {
+      setLogs(["Please select at least one demo for auto-tuning"]);
       return;
     }
 
     setLogs([]);
     setLogs((prev) => [...prev, "🔮 Auto-tuning parameters..."]);
 
-    const allSnaps = extractSnapshots(matchData, {
-      timepoints: [...timepoints],
-    });
-    const snaps = selectedTeamName
-      ? allSnaps.filter((snap) => {
-          const teamNameInRound = getTeamNameForRound(snap.roundNum, snap.team);
-          return (
-            teamNameInRound === selectedTeamName && snap.team === selectedSide
-          );
-        })
-      : allSnaps.filter((snap) => snap.team === selectedSide);
-    const { matrix } = buildFeatureMatrixWithRegions(
-      snaps,
-      [...timepoints],
-      {
-        economyWeight,
-        impute: true,
-        includeEconomy,
-        normalizePositions,
-        relativePositions,
-      },
-      selectedSide
-    );
-
-    const dataChar = {
-      nSamples: matrix.length,
-      nFeatures: matrix[0]?.length || 0,
-    };
-
-    setLogs((prev) => [
-      ...prev,
-      `Dataset: ${dataChar.nSamples} samples, ${dataChar.nFeatures} features`,
-    ]);
-
-    // Keep current reduction method, only optimize its parameters
-    setLogs((prev) => [
-      ...prev,
-      `Using current method: ${reductionMethod.toUpperCase()}`,
-    ]);
-
-    // Suggest reduction params based on current method
-    if (reductionMethod === "tsne") {
-      const tsneParams = suggestTSNEParams(dataChar);
-      setPerplexity(tsneParams.perplexity);
-      setLearningRate(tsneParams.learningRate);
-      setIterations(tsneParams.iterations);
-      setLogs((prev) => [
-        ...prev,
-        `✓ t-SNE: perplexity=${tsneParams.perplexity}, lr=${tsneParams.learningRate}, iter=${tsneParams.iterations}`,
-      ]);
-    } else {
-      const umapParams = suggestUMAPParams(dataChar);
-      setNNeighbors(umapParams.nNeighbors);
-      setMinDist(umapParams.minDist);
-      setNEpochs(umapParams.nEpochs);
-      setLogs((prev) => [
-        ...prev,
-        `✓ UMAP: neighbors=${umapParams.nNeighbors}, minDist=${umapParams.minDist}, epochs=${umapParams.nEpochs}`,
-      ]);
-    }
-
-    // Suggest clustering method
-    const clusterSuggestion = suggestClusteringMethod(dataChar);
-    setLogs((prev) => [
-      ...prev,
-      `✓ Clustering: ${clusterSuggestion.method} - ${clusterSuggestion.reason}`,
-    ]);
-    setClusterMethod(clusterSuggestion.method);
-
-    // Suggest clustering params
-    if (clusterSuggestion.method === "kmeans") {
-      const kmeansParams = suggestKMeansK(dataChar);
-      setK(kmeansParams.k);
-      setLogs((prev) => [
-        ...prev,
-        `✓ K-means: k=${kmeansParams.k} (try range ${kmeansParams.suggestedRange.min}-${kmeansParams.suggestedRange.max})`,
-      ]);
-    } else {
-      const dbscanParams = suggestDBSCANParams(dataChar);
-      setEps(dbscanParams.eps);
-      setMinPts(dbscanParams.minPts);
-      setLogs((prev) => [
-        ...prev,
-        `✓ DBSCAN: eps=${dbscanParams.eps}, minPts=${dbscanParams.minPts}`,
-      ]);
-    }
-
-    setLogs((prev) => [
-      ...prev,
-      "✅ Auto-tune complete! Click 'Run' to apply.",
-    ]);
-  };
-
-  const handleRunClustering = async () => {
-    if (!matchData) return;
-    setRunning(true);
-    setLogs([]);
-    setLogs((prev) => [...prev, "Starting clustering analysis..."]);
-
     try {
-      const allSnaps = extractSnapshots(matchData, {
-        timepoints: [...timepoints],
-      });
-      const snaps = selectedTeamName
-        ? allSnaps.filter((snap) => {
-            const teamNameInRound = getTeamNameForRound(
-              snap.roundNum,
-              snap.team
-            );
+      // Extract and combine snapshots from all demos
+      let allSnaps = [];
+      let demoIndex = 0;
+      for (const demoData of matchDataList) {
+        const demoSnaps = extractSnapshots(demoData, {
+          timepoints: [...timepoints],
+        });
+
+        // Filter by team and side if selected
+        let filteredSnaps = demoSnaps;
+        if (selectedTeamName) {
+          const matchMapping = getMatchTeamMapping(demoData);
+          filteredSnaps = demoSnaps.filter((snap) => {
+            const teamOnSide =
+              snap.team === "CT" ? matchMapping.CT : matchMapping.T;
             return (
-              teamNameInRound === selectedTeamName && snap.team === selectedSide
+              areTeamNamesEqual(teamOnSide, selectedTeamName) &&
+              snap.team === selectedSide
             );
-          })
-        : allSnaps.filter((snap) => snap.team === selectedSide);
+          });
+        } else {
+          filteredSnaps = demoSnaps.filter(
+            (snap) => snap.team === selectedSide
+          );
+        }
 
-      snapshotsRef.current = snaps;
+        // Add demoId and demoIndex to each snapshot for identification
+        // IMPORTANT: Replace roundNum with a unique value to prevent collapsing across demos
+        filteredSnaps = filteredSnaps.map((snap, idx) => ({
+          ...snap,
+          originalRoundNum: snap.roundNum, // Keep original for reference
+          roundNum: demoIndex * 10000 + snap.roundNum, // Make roundNum unique across demos
+          demoId: clusteringDemoIds[demoIndex],
+          demoIndex: demoIndex,
+          uniqueRoundId: `${demoIndex}_${snap.roundNum}`,
+        }));
 
-      if (snaps.length === 0) {
-        setLogs((prev) => [...prev, "No snapshots found for selected filters"]);
-        setRunning(false);
-        return;
+        allSnaps = allSnaps.concat(filteredSnaps);
+        demoIndex++;
       }
 
-      setLogs((prev) => [...prev, `Extracted ${snaps.length} snapshots`]);
-
-      const { matrix, rows } = buildFeatureMatrixWithRegions(
-        snaps,
+      const { matrix } = buildFeatureMatrixWithRegions(
+        allSnaps,
         [...timepoints],
         {
           economyWeight,
@@ -575,7 +589,239 @@ const CS2Dashboard = () => {
         },
         selectedSide
       );
+
+      const dataChar = {
+        nSamples: matrix.length,
+        nFeatures: matrix[0]?.length || 0,
+      };
+
+      setLogs((prev) => [
+        ...prev,
+        `Dataset: ${dataChar.nSamples} samples, ${dataChar.nFeatures} features`,
+      ]);
+
+      // Keep current reduction method, only optimize its parameters
+      setLogs((prev) => [
+        ...prev,
+        `Using current method: ${reductionMethod.toUpperCase()}`,
+      ]);
+
+      // Suggest reduction params based on current method
+      if (reductionMethod === "tsne") {
+        const tsneParams = suggestTSNEParams(dataChar);
+        setPerplexity(tsneParams.perplexity);
+        setLearningRate(tsneParams.learningRate);
+        setIterations(tsneParams.iterations);
+        setLogs((prev) => [
+          ...prev,
+          `✓ t-SNE: perplexity=${tsneParams.perplexity}, lr=${tsneParams.learningRate}, iter=${tsneParams.iterations}`,
+        ]);
+      } else {
+        const umapParams = suggestUMAPParams(dataChar);
+        setNNeighbors(umapParams.nNeighbors);
+        setMinDist(umapParams.minDist);
+        setNEpochs(umapParams.nEpochs);
+        setLogs((prev) => [
+          ...prev,
+          `✓ UMAP: neighbors=${umapParams.nNeighbors}, minDist=${umapParams.minDist}, epochs=${umapParams.nEpochs}`,
+        ]);
+      }
+
+      // Suggest clustering method
+      const clusterSuggestion = suggestClusteringMethod(dataChar);
+      setLogs((prev) => [
+        ...prev,
+        `✓ Clustering: ${clusterSuggestion.method} - ${clusterSuggestion.reason}`,
+      ]);
+      setClusterMethod(clusterSuggestion.method);
+
+      // Suggest clustering params
+      if (clusterSuggestion.method === "kmeans") {
+        const kmeansParams = suggestKMeansK(dataChar);
+        setK(kmeansParams.k);
+        setLogs((prev) => [
+          ...prev,
+          `✓ K-means: k=${kmeansParams.k} (try range ${kmeansParams.suggestedRange.min}-${kmeansParams.suggestedRange.max})`,
+        ]);
+      } else {
+        const dbscanParams = suggestDBSCANParams(dataChar);
+        setEps(dbscanParams.eps);
+        setMinPts(dbscanParams.minPts);
+        setLogs((prev) => [
+          ...prev,
+          `✓ DBSCAN: eps=${dbscanParams.eps}, minPts=${dbscanParams.minPts}`,
+        ]);
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        "✅ Auto-tune complete! Click 'Run' to apply.",
+      ]);
+    } catch (err) {
+      setLogs((prev) => [
+        ...prev,
+        `Error during auto-tune: ${err?.message || String(err)}`,
+      ]);
+    }
+  };
+
+  const handleRunClustering = async () => {
+    // Check if we have demos selected for clustering
+    if (matchDataList.length === 0) {
+      setLogs(["Please select at least one demo for clustering analysis"]);
+      return;
+    }
+
+    setRunning(true);
+    setLogs([]);
+    setLogs((prev) => [
+      ...prev,
+      `Processing ${matchDataList.length} demo(s)...`,
+    ]);
+
+    try {
+      // Extract snapshots from all demos and combine them
+      let allSnaps = [];
+      let demoIndex = 0;
+      for (const demoData of matchDataList) {
+        const demoSnaps = extractSnapshots(demoData, {
+          timepoints: [...timepoints],
+        });
+
+        // DEBUG: Check what fields the snapshots actually have
+        if (demoIndex === 0 && demoSnaps.length > 0) {
+          console.log("Raw snapshot structure:", Object.keys(demoSnaps[0]));
+          console.log("First raw snapshot:", demoSnaps[0]);
+        }
+
+        // Filter snapshots based on team and side selection
+        let filteredSnaps = demoSnaps;
+
+        // If a specific team is selected, filter by team name
+        if (selectedTeamName) {
+          const matchMapping = getMatchTeamMapping(demoData);
+          filteredSnaps = demoSnaps.filter((snap) => {
+            const teamOnSide =
+              snap.team === "CT" ? matchMapping.CT : matchMapping.T;
+            return (
+              areTeamNamesEqual(teamOnSide, selectedTeamName) &&
+              snap.team === selectedSide
+            );
+          });
+        } else {
+          // Just filter by side
+          filteredSnaps = demoSnaps.filter(
+            (snap) => snap.team === selectedSide
+          );
+        }
+
+        // Add demoId and demoIndex to each snapshot for identification
+        // IMPORTANT: Replace roundNum with a unique value to prevent collapsing across demos
+        filteredSnaps = filteredSnaps.map((snap, idx) => ({
+          ...snap,
+          originalRoundNum: snap.roundNum, // Keep original for reference
+          roundNum: demoIndex * 10000 + snap.roundNum, // Make roundNum unique across demos
+          demoId: clusteringDemoIds[demoIndex],
+          demoIndex: demoIndex,
+          uniqueRoundId: `${demoIndex}_${snap.roundNum}`,
+        }));
+
+        allSnaps = allSnaps.concat(filteredSnaps);
+        demoIndex++;
+      }
+
+      snapshotsRef.current = allSnaps;
+
+      if (allSnaps.length === 0) {
+        setLogs((prev) => [...prev, "No snapshots found for selected filters"]);
+        setRunning(false);
+        return;
+      }
+
+      setLogs((prev) => [
+        ...prev,
+        `Extracted ${allSnaps.length} snapshots from all demos`,
+      ]);
+
+      // Debug: log snapshot distribution per demo
+      const snapsPerDemo = {};
+      allSnaps.forEach((snap) => {
+        const key = snap.demoIndex;
+        snapsPerDemo[key] = (snapsPerDemo[key] || 0) + 1;
+      });
+      console.log("Snapshots per demo:", snapsPerDemo);
+      console.log(
+        "Sample snapshots with roundNums:",
+        allSnaps.slice(0, 10).map((s) => ({
+          roundNum: s.roundNum,
+          originalRoundNum: s.originalRoundNum,
+          demoIndex: s.demoIndex,
+          team: s.team,
+        }))
+      );
+      setLogs((prev) => [
+        ...prev,
+        `Distribution: ${Object.entries(snapsPerDemo)
+          .map(([idx, count]) => `Demo${idx}=${count}`)
+          .join(", ")}`,
+      ]);
+
+      const { matrix, rows } = buildFeatureMatrixWithRegions(
+        allSnaps,
+        [...timepoints],
+        {
+          economyWeight,
+          impute: true,
+          includeEconomy,
+          normalizePositions,
+          relativePositions,
+        },
+        selectedSide
+      );
+
+      // Create a mapping from modified roundNum to original data
+      const roundNumMapping = new Map();
+      allSnaps.forEach((snap) => {
+        if (!roundNumMapping.has(snap.roundNum)) {
+          roundNumMapping.set(snap.roundNum, {
+            originalRoundNum: snap.originalRoundNum,
+            demoId: snap.demoId,
+            demoIndex: snap.demoIndex,
+            uniqueRoundId: snap.uniqueRoundId,
+          });
+        }
+      });
+
+      // Restore the custom fields to rows
+      rows.forEach((row) => {
+        const mapping = roundNumMapping.get(row.roundNum);
+        if (mapping) {
+          row.originalRoundNum = mapping.originalRoundNum;
+          row.demoId = mapping.demoId;
+          row.demoIndex = mapping.demoIndex;
+          row.uniqueRoundId = mapping.uniqueRoundId;
+        }
+      });
+
       rowsRef.current = rows;
+
+      console.log(
+        `Matrix shape: ${matrix.length} rows x ${matrix[0]?.length || 0} cols`
+      );
+      console.log(`Rows metadata length: ${rows.length}`);
+      console.log(
+        "Sample rows:",
+        rows.slice(0, 10).map((r) => ({
+          roundNum: r.roundNum,
+          originalRoundNum: r.originalRoundNum,
+          demoIndex: r.demoIndex,
+          team: r.team,
+        }))
+      );
+      setLogs((prev) => [
+        ...prev,
+        `Matrix: ${matrix.length} rows x ${matrix[0]?.length || 0} features`,
+      ]);
 
       try {
         if (reductionMethod === "umap") {
@@ -604,7 +850,20 @@ const CS2Dashboard = () => {
             roundNum: rows[i]?.roundNum,
             team: rows[i]?.team,
             timepoint: tp0,
+            demoId: rows[i]?.demoId,
+            demoIndex: rows[i]?.demoIndex,
+            uniqueRoundId: rows[i]?.uniqueRoundId,
           }));
+          console.log(`Created ${pts.length} points from UMAP`);
+          console.log(
+            "Sample points with roundNum info:",
+            pts.slice(0, 5).map((p) => ({
+              roundNum: p.roundNum,
+              originalRoundNum: p.originalRoundNum,
+              demoIndex: p.demoIndex,
+              cluster: p.cluster,
+            }))
+          );
           setPoints(pts);
           setRunning(false);
         } else {
@@ -632,7 +891,20 @@ const CS2Dashboard = () => {
                 roundNum: rows[i]?.roundNum,
                 team: rows[i]?.team,
                 timepoint: tp0,
+                demoId: rows[i]?.demoId,
+                demoIndex: rows[i]?.demoIndex,
+                uniqueRoundId: rows[i]?.uniqueRoundId,
               }));
+              console.log(`Created ${pts.length} points from t-SNE`);
+              console.log(
+                "Sample points with roundNum info:",
+                pts.slice(0, 5).map((p) => ({
+                  roundNum: p.roundNum,
+                  originalRoundNum: p.originalRoundNum,
+                  demoIndex: p.demoIndex,
+                  cluster: p.cluster,
+                }))
+              );
               setPoints(pts);
               setRunning(false);
             }
@@ -876,6 +1148,27 @@ const CS2Dashboard = () => {
             Visualize CS2 round strategies using dimensionality reduction (t-SNE
             or UMAP) and clustering.
           </p>
+
+          {/* Multi-Demo Selector */}
+          <div className="mb-6">
+            <MultiDemoSelector
+              onDemoSelect={setClusteringDemoIds}
+              selectedDemoIds={clusteringDemoIds}
+              disabled={running || loadingClusteringDemos}
+            />
+            {loadingClusteringDemos && (
+              <div className="mt-2 flex items-center gap-2 text-sm text-gray-400">
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-400"></div>
+                <span>Loading selected demos...</span>
+              </div>
+            )}
+            {matchDataList.length > 0 && !loadingClusteringDemos && (
+              <div className="mt-2 text-sm text-green-400">
+                ✓ {matchDataList.length} demo(s) loaded and ready
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <section className="space-y-4">
               <Controls
@@ -883,7 +1176,16 @@ const CS2Dashboard = () => {
                 onTeamNameChange={setSelectedTeamName}
                 selectedSide={selectedSide}
                 onSideChange={setSelectedSide}
-                teamMapping={initialTeamMapping}
+                teamMapping={
+                  matchDataList.length > 0
+                    ? {
+                        CT: availableTeams[0] || null,
+                        T: availableTeams[1] || null,
+                      }
+                    : initialTeamMapping
+                }
+                availableTeams={availableTeams}
+                commonTeams={commonTeams}
                 selectedTimepoints={timepoints}
                 onToggleTimepoint={(tp) => {
                   setTimepoints((prev) =>
@@ -927,7 +1229,7 @@ const CS2Dashboard = () => {
                 onRun={handleRunClustering}
                 onPredict={handlePredict}
                 onAutoTune={handleAutoTune}
-                disabled={isLoading || running}
+                disabled={isLoading || running || loadingClusteringDemos}
               />
 
               {/* Logs below Controls in same column */}

@@ -90,49 +90,193 @@ export function MultiDemoSelector({
   }
 
   return (
-    <div className="w-full space-y-2">
+    <div className="w-full space-y-3">
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-200">Select Matches to Cluster</h3>
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold text-gray-100">
+            Demo Selection
+          </h3>
+          {selectedDemoIds.length > 0 && (
+            <span className="px-2 py-0.5 text-xs font-medium bg-blue-500/20 text-blue-400 rounded-full border border-blue-500/30">
+              {selectedDemoIds.length} selected
+            </span>
+          )}
+        </div>
         <Button
           variant="ghost"
           size="sm"
           onClick={fetchDemos}
-          className="h-6 w-6 p-0"
+          disabled={loading}
+          className="h-7 px-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50"
         >
-          <RefreshCw className="w-3 h-3" />
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
+          />
         </Button>
       </div>
-      <div className="max-h-[200px] overflow-y-auto space-y-1 border rounded-md p-2 bg-slate-950/50">
-        {demos.map((demo) => (
-          <div
-            key={demo.demo_id}
-            className={`flex items-center gap-2 p-2 rounded cursor-pointer ${
-              disabled ? "opacity-50 cursor-not-allowed" : "hover:bg-slate-800"
-            }`}
-            onClick={() => toggleDemo(demo.demo_id)}
-          >
-            <input
-              type="checkbox"
-              checked={selectedDemoIds.includes(demo.demo_id)}
-              disabled={disabled}
-              onChange={() => {}} // Handled by parent div click
-              className="rounded border-gray-600 bg-slate-900 disabled:opacity-50"
-            />
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium truncate text-gray-200">
-                {demo.demo_name || demo.demo_id}
+
+      <div className="relative">
+        <div className="max-h-[240px] overflow-y-auto space-y-1.5 border border-gray-700 rounded-lg p-3 bg-gray-800/50 backdrop-blur-sm">
+          {demos.map((demo) => {
+            const isSelected = selectedDemoIds.includes(demo.demo_id);
+            return (
+              <div
+                key={demo.demo_id}
+                className={`
+                  group relative flex items-center gap-3 p-3 rounded-lg cursor-pointer
+                  transition-all duration-200 border
+                  ${
+                    disabled
+                      ? "opacity-40 cursor-not-allowed"
+                      : isSelected
+                      ? "bg-blue-500/10 border-blue-500/50 hover:bg-blue-500/15"
+                      : "bg-gray-800/50 border-gray-700/50 hover:bg-gray-700/70 hover:border-gray-600/70"
+                  }
+                `}
+                onClick={() => toggleDemo(demo.demo_id)}
+              >
+                {/* Custom Checkbox */}
+                <div
+                  className={`
+                  flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center
+                  transition-all duration-200
+                  ${
+                    isSelected
+                      ? "bg-blue-500 border-blue-500"
+                      : "bg-gray-900 border-gray-600 group-hover:border-gray-500"
+                  }
+                `}
+                >
+                  {isSelected && (
+                    <svg
+                      className="w-3 h-3 text-white"
+                      fill="none"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="3"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path d="M5 13l4 4L19 7"></path>
+                    </svg>
+                  )}
+                </div>
+
+                {/* Demo Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-baseline gap-2">
+                    <span
+                      className={`text-sm font-medium truncate ${
+                        isSelected ? "text-gray-100" : "text-gray-200"
+                      }`}
+                    >
+                      {demo.demo_name || demo.demo_id}
+                    </span>
+                    {demo.score_ct != null && demo.score_t != null && (
+                      <span className="text-xs text-gray-500 font-mono flex-shrink-0">
+                        {demo.score_ct}:{demo.score_t}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500">
+                    <span className="flex items-center gap-1">
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                        />
+                      </svg>
+                      {new Date(demo.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                      })}
+                    </span>
+                    <span className="text-gray-600">•</span>
+                    <span className="flex items-center gap-1">
+                      <svg
+                        className="w-3 h-3"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth="2"
+                          d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"
+                        />
+                      </svg>
+                      {demo.map_name}
+                    </span>
+                  </div>
+                  {(demo.team_ct || demo.team_t) && (
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {demo.team_ct && (
+                        <span className="px-1.5 py-0.5 text-xs bg-blue-500/10 text-blue-400 rounded border border-blue-500/20">
+                          {demo.team_ct}
+                        </span>
+                      )}
+                      <span className="text-gray-600 text-xs">vs</span>
+                      {demo.team_t && (
+                        <span className="px-1.5 py-0.5 text-xs bg-orange-500/10 text-orange-400 rounded border border-orange-500/20">
+                          {demo.team_t}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Selection Indicator */}
+                {isSelected && (
+                  <div className="absolute inset-0 rounded-lg ring-1 ring-blue-500/30 pointer-events-none"></div>
+                )}
               </div>
-              <div className="text-xs text-gray-500">
-                {new Date(demo.date).toLocaleDateString()} - {demo.map_name}
-              </div>
+            );
+          })}
+          {demos.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+              <svg
+                className="w-12 h-12 mb-2 text-gray-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <p className="text-sm">No demos available</p>
             </div>
-          </div>
-        ))}
-        {demos.length === 0 && (
-          <div className="text-sm text-gray-500 text-center py-4">
-            No demos found
-          </div>
-        )}
+          )}
+        </div>
+
+        {/* Scrollbar styling hint */}
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          div::-webkit-scrollbar-track {
+            background: rgba(31, 41, 55, 0.5);
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: rgba(75, 85, 99, 0.8);
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: rgba(107, 114, 128, 0.9);
+          }
+        `}</style>
       </div>
     </div>
   );
