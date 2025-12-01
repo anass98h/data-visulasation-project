@@ -588,22 +588,25 @@ const CS2Dashboard = () => {
           timepoints: [...timepoints],
         });
 
-        // Filter by team and side if selected
-        let filteredSnaps = demoSnaps;
+        // Filter by team and side - use same logic as handleRunClustering
+        let filteredSnaps = demoSnaps.filter(
+          (snap) => snap.team === selectedSide
+        );
+
         if (selectedTeamName) {
-          const matchMapping = getMatchTeamMapping(demoData);
-          filteredSnaps = demoSnaps.filter((snap) => {
-            const teamOnSide =
-              snap.team === "CT" ? matchMapping.CT : matchMapping.T;
-            return (
-              areTeamNamesEqual(teamOnSide, selectedTeamName) &&
-              snap.team === selectedSide
+          filteredSnaps = filteredSnaps.filter((snap) => {
+            // Use getTeamNameForRound to account for side switching
+            const teamNameInRound = getTeamNameForRound(
+              demoData,
+              snap.roundNum,
+              snap.team
             );
+            const matches = areTeamNamesEqual(
+              teamNameInRound,
+              selectedTeamName
+            );
+            return matches;
           });
-        } else {
-          filteredSnaps = demoSnaps.filter(
-            (snap) => snap.team === selectedSide
-          );
         }
 
         // Add demoId and demoIndex to each snapshot for identification
@@ -893,17 +896,72 @@ const CS2Dashboard = () => {
         `Matrix: ${matrix.length} rows x ${matrix[0]?.length || 0} features`,
       ]);
 
+      // Validate and auto-adjust parameters for small datasets
+      const numRows = matrix.length;
+
+      if (numRows < 10) {
+        setLogs((prev) => [
+          ...prev,
+          `ERROR: Too few data points (${numRows}). Need at least 10 rounds.`,
+        ]);
+        setRunning(false);
+        return;
+      }
+
+      // Auto-adjust parameters for small datasets to prevent crashes
+      let adjustedPerplexity = perplexity;
+      let adjustedNNeighbors = nNeighbors;
+      let adjustedK = k;
+      let adjustedMinPts = minPts;
+
+      if (numRows < 50) {
+        // t-SNE: perplexity should be less than numRows/3
+        adjustedPerplexity = Math.min(
+          perplexity,
+          Math.max(5, Math.floor((numRows - 1) / 3))
+        );
+
+        // UMAP: nNeighbors should be less than numRows
+        adjustedNNeighbors = Math.min(nNeighbors, Math.max(2, numRows - 1));
+
+        // K-means: k should be less than numRows
+        adjustedK = Math.min(k, Math.max(2, Math.floor(numRows / 2)));
+
+        // DBSCAN: minPts should be reasonable
+        adjustedMinPts = Math.min(minPts, Math.max(2, Math.floor(numRows / 5)));
+
+        console.log(
+          `Small dataset (${numRows} rows) - auto-adjusting parameters:`
+        );
+        if (adjustedPerplexity !== perplexity)
+          console.log(
+            `  t-SNE Perplexity: ${perplexity} → ${adjustedPerplexity}`
+          );
+        if (adjustedNNeighbors !== nNeighbors)
+          console.log(
+            `  UMAP nNeighbors: ${nNeighbors} → ${adjustedNNeighbors}`
+          );
+        if (adjustedK !== k) console.log(`  K-means K: ${k} → ${adjustedK}`);
+        if (adjustedMinPts !== minPts)
+          console.log(`  DBSCAN minPts: ${minPts} → ${adjustedMinPts}`);
+
+        setLogs((prev) => [
+          ...prev,
+          `⚠️  Small dataset (${numRows} rounds) - parameters auto-adjusted for stability`,
+        ]);
+      }
+
       try {
         if (reductionMethod === "umap") {
           setLogs((prev) => [...prev, "Initializing UMAP..."]);
           const result = await runUMAP(
             matrix,
             {
-              umap: { nNeighbors, minDist, nEpochs },
+              umap: { nNeighbors: adjustedNNeighbors, minDist, nEpochs },
               cluster:
                 clusterMethod === "kmeans"
-                  ? { method: "kmeans", k, maxIter: 100, tries: 5 }
-                  : { method: "dbscan", eps, minPts },
+                  ? { method: "kmeans", k: adjustedK, maxIter: 100, tries: 5 }
+                  : { method: "dbscan", eps, minPts: adjustedMinPts },
               standardize: true,
             },
             (msg) => {
@@ -963,6 +1021,22 @@ const CS2Dashboard = () => {
             } else if (type === "result") {
               labelsRef.current = labels || null;
               const tp0 = [...timepoints].sort((a, b) => a - b)[0];
+
+              console.log(
+                `Received embedding with ${embedding?.length || 0} points`
+              );
+              console.log(`Labels: ${labels?.length || 0} items`);
+
+              if (!embedding || embedding.length === 0) {
+                console.error("ERROR: Empty embedding received from worker!");
+                setLogs((prev) => [
+                  ...prev,
+                  "ERROR: Clustering produced empty results",
+                ]);
+                setRunning(false);
+                return;
+              }
+
               const pts = (embedding || []).map((p, i) => {
                 const modifiedRoundNum = rows[i]?.roundNum || 0;
                 // Calculate original round number and demo index from modified value
@@ -1016,11 +1090,15 @@ const CS2Dashboard = () => {
             params: {
               standardize: true,
               reductionMethod: "tsne",
-              tsne: { perplexity, learningRate, nIter: iterations },
+              tsne: {
+                perplexity: adjustedPerplexity,
+                learningRate,
+                nIter: iterations,
+              },
               cluster:
                 clusterMethod === "kmeans"
-                  ? { method: "kmeans", k, maxIter: 100, tries: 5 }
-                  : { method: "dbscan", eps, minPts },
+                  ? { method: "kmeans", k: adjustedK, maxIter: 100, tries: 5 }
+                  : { method: "dbscan", eps, minPts: adjustedMinPts },
             },
           });
         }
