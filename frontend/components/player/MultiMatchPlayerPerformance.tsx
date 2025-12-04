@@ -17,8 +17,14 @@ export default function MultiMatchPlayerPerformance({
   const [result, setResult] = useState<any>(null);
 
   useEffect(() => {
+    console.log("🔵 Player Performance - useEffect triggered");
+    console.log("📊 selectedDemoIds:", selectedDemoIds);
+    console.log("📦 matchDataList:", matchDataList);
+    console.log("📏 matchDataList.length:", matchDataList.length);
+
     // Process data when matchDataList changes
     if (matchDataList.length > 0) {
+      console.log("✅ Processing data...");
       setProcessing(true);
 
       // Simulate async processing
@@ -30,10 +36,14 @@ export default function MultiMatchPlayerPerformance({
           // Add more processed data as needed
         };
 
+        console.log("✨ Processed Data - matchDataList:", matchDataList);
+        console.log("✨ Processed Data - selectedDemoIds:", selectedDemoIds);
+
         setResult(processedData);
         setProcessing(false);
       }, 500);
     } else {
+      console.log("⚠️ No match data available");
       setResult(null);
     }
   }, [matchDataList, selectedDemoIds]);

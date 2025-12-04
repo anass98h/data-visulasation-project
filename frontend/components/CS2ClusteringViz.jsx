@@ -1418,6 +1418,15 @@ const CS2Dashboard = () => {
             </button>
           </div>
 
+          {/* Always render Player Performance component (hidden when not active) to process data in background */}
+          <div style={{ display: activeView === "player-performance" ? "block" : "none" }}>
+            <MultiMatchPlayerPerformance
+              selectedDemoIds={clusteringDemoIds}
+              matchDataList={matchDataList}
+              isLoading={loadingClusteringDemos}
+            />
+          </div>
+
           {activeView === "clustering" ? (
             <>
               {/* Quick Guide - Collapsible */}
@@ -1898,13 +1907,7 @@ const CS2Dashboard = () => {
             </section>
           </div>
             </>
-          ) : (
-            <MultiMatchPlayerPerformance
-              selectedDemoIds={clusteringDemoIds}
-              matchDataList={matchDataList}
-              isLoading={loadingClusteringDemos}
-            />
-          )}
+          ) : null}
         </div>
       </div>
     </div>
