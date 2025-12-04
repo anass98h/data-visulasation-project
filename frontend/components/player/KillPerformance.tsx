@@ -37,7 +37,7 @@ export function KillPerformance({
 
     const containerWidth = containerRef.current.clientWidth;
     const containerHeight = containerRef.current.clientHeight;
-    const margin = { top: 10, right: 60, bottom: 30, left: 40 };
+    const margin = { top: 5, right: 5, bottom: 30, left: 40 };
     const width = containerWidth - margin.left - margin.right;
     const chartHeight = containerHeight - margin.top - margin.bottom;
 
@@ -226,34 +226,7 @@ export function KillPerformance({
         });
     });
 
-    // Add legend
-    const legend = svg
-      .append("g")
-      .attr("transform", `translate(${width + 10}, 0)`);
-
-    seriesData.forEach((series, i) => {
-      const lineColor = d3.schemeTableau10[i % 10];
-      const legendRow = legend
-        .append("g")
-        .attr("transform", `translate(0, ${i * 20})`);
-
-      legendRow
-        .append("line")
-        .attr("x1", 0)
-        .attr("x2", 20)
-        .attr("y1", 10)
-        .attr("y2", 10)
-        .attr("stroke", lineColor)
-        .attr("stroke-width", 2);
-
-      legendRow
-        .append("text")
-        .attr("x", 25)
-        .attr("y", 14)
-        .attr("font-size", "10px")
-        .attr("fill", "#9ca3af")
-        .text(series.label.length > 10 ? series.label.substring(0, 10) + "..." : series.label);
-    });
+    // Legend removed for compact chart layout
 
     // Cleanup tooltip on unmount
     return () => {

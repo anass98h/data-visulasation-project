@@ -37,6 +37,36 @@ export interface MatchPerformance {
 }
 
 /**
+ * Ensure we have a 10-player list, falling back to deriving from ticks when missing/incomplete.
+ * Uses a single pass through ticks with early exit for performance on large datasets.
+ */
+export function resolvePlayers(demoData: any): any[] {
+  const players = demoData.players;
+  if (Array.isArray(players) && players.length === 10) {
+    return players;
+  }
+
+  const ticks = Array.isArray(demoData.ticks) ? demoData.ticks : [];
+  const seen = new Map<number | string, any>();
+
+  for (const tick of ticks) {
+    const steamId = tick?.steamId;
+    if (!steamId || seen.has(steamId)) continue;
+
+    seen.set(steamId, {
+      steamId,
+      name: tick.name || '',
+      team: tick.team,
+      side: tick.side
+    });
+
+    if (seen.size === 10) break; // early exit once all players found
+  }
+
+  return Array.from(seen.values());
+}
+
+/**
  * Build mapping of round numbers to tick ranges
  * @param rounds - Array of round objects from demo data
  * @returns Object mapping round keys (r1, r2, ...) to {startTick, endTick}
@@ -138,9 +168,10 @@ export function calculatePlayerPerformance(
   matchId: string,
   matchName?: string
 ): Record<string, MatchPerformance> {
-  const { rounds, kills, players } = demoData;
+  const { rounds, kills } = demoData;
+  const players = resolvePlayers(demoData);
 
-  if (!rounds || !kills || !players) {
+  if (!rounds || !kills || !players || players.length === 0) {
     console.warn('Missing required data in demoData');
     return {
       [matchId]: {
@@ -149,6 +180,8 @@ export function calculatePlayerPerformance(
       }
     };
   }
+
+  
 
   // 1. Build round tick ranges
   const roundTickRanges = buildRoundTickRanges(rounds);
