@@ -17,6 +17,7 @@ import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 import Controls from "@/components/clustering/Controls";
 import DimensionScatter from "@/components/clustering/DimensionScatter";
 import ClusteringMapPreview from "@/components/clustering/ClusteringMapPreview";
+import MultiMatchPlayerPerformance from "@/components/player/MultiMatchPlayerPerformance";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { DEFAULT_TIMEPOINTS } from "@/config/clustering.config";
 import { extractSnapshots } from "@/lib/clustering/extractSnapshots";
@@ -42,7 +43,7 @@ const CS2Dashboard = () => {
   const [matchData, setMatchData] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [currentRoundContext, setCurrentRoundContext] = useState(1);
 
   // New states for demo selector and WASM parsing
@@ -94,6 +95,7 @@ const CS2Dashboard = () => {
   const [loadingClusteringDemos, setLoadingClusteringDemos] = useState(false);
   const [demoNamesMap, setDemoNamesMap] = useState({});
   const [showQuickGuide, setShowQuickGuide] = useState(false);
+  const [activeView, setActiveView] = useState("clustering");
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -1386,8 +1388,49 @@ const CS2Dashboard = () => {
             </span>
           </div>
 
-          {/* Quick Guide - Collapsible */}
-          {showQuickGuide && (
+          {/* Tab Navigation */}
+          <div className="mb-6 flex gap-6 border-b border-gray-700">
+            <button
+              onClick={() => setActiveView("clustering")}
+              className={`px-1 py-3 text-sm font-medium transition-all relative ${
+                activeView === "clustering"
+                  ? "text-blue-400"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Clustering Analysis
+              {activeView === "clustering" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveView("player-performance")}
+              className={`px-1 py-3 text-sm font-medium transition-all relative ${
+                activeView === "player-performance"
+                  ? "text-blue-400"
+                  : "text-gray-400 hover:text-gray-300"
+              }`}
+            >
+              Player Performance
+              {activeView === "player-performance" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
+              )}
+            </button>
+          </div>
+
+          {/* Always render Player Performance component (hidden when not active) to process data in background */}
+          <div style={{ display: activeView === "player-performance" ? "block" : "none" }}>
+            <MultiMatchPlayerPerformance
+              selectedDemoIds={clusteringDemoIds}
+              matchDataList={matchDataList}
+              isLoading={loadingClusteringDemos}
+            />
+          </div>
+
+          {activeView === "clustering" ? (
+            <>
+              {/* Quick Guide - Collapsible */}
+              {showQuickGuide && (
             <div className="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
               <div className="flex items-start gap-3">
                 <HelpCircle className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
@@ -1863,6 +1906,8 @@ const CS2Dashboard = () => {
               </div>
             </section>
           </div>
+            </>
+          ) : null}
         </div>
       </div>
     </div>
