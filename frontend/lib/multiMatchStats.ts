@@ -18,6 +18,7 @@ import {
 export type KillEvent = {
   round: number;
   matchId: number;
+  matchName: string;
   kills: number;
 };
 
@@ -29,6 +30,7 @@ export type PlayerStats = {
   matches: KillEvent[];
   totalMatches: number;
   totalRounds: number;
+  matchNames: Record<number, string>; // Map matchId to match name
 };
 
 export type PlayerAggregatedStats = {
@@ -239,6 +241,12 @@ export function transformDemoDataToPlayerStats(
   matchDataList.forEach((demoData, matchIndex) => {
     const matchId = matchIndex + 1;
 
+    // Get match name from demo data or use demo ID
+    const matchName = demoData.metadata?.mapName ||
+                      demoData.mapName ||
+                      selectedDemoIds[matchIndex] ||
+                      `Match ${matchId}`;
+
     // Resolve players using existing helper
     const players = resolvePlayers(demoData);
     const { rounds, kills } = demoData;
@@ -269,10 +277,14 @@ export function transformDemoDataToPlayerStats(
           matches: [],
           totalMatches: 0,
           totalRounds: 0,
+          matchNames: {},
         });
       }
 
       const playerStats = playerMap.get(key)!;
+
+      // Store match name for this matchId
+      playerStats.matchNames[matchId] = matchName;
 
       // Add kill events for this match
       Object.keys(roundTickRanges).forEach((roundKey) => {
@@ -283,6 +295,7 @@ export function transformDemoDataToPlayerStats(
         playerStats.matches.push({
           round: roundNum,
           matchId,
+          matchName,
           kills,
         });
       });

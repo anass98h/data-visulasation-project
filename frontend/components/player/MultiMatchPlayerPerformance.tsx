@@ -53,7 +53,36 @@ const KillGrid = ({
   player: PlayerStats;
   matchCount: number;
 }) => {
-  const maxRounds = 24; // Visual cap for horizontal space
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [cellWidth, setCellWidth] = useState(20);
+
+  // Calculate the actual maximum rounds across all matches for responsiveness
+  const maxRounds = useMemo(() => {
+    const roundsPerMatch = new Map<number, number>();
+    player.matches.forEach((event) => {
+      const currentMax = roundsPerMatch.get(event.matchId) || 0;
+      roundsPerMatch.set(event.matchId, Math.max(currentMax, event.round));
+    });
+    return Math.max(...Array.from(roundsPerMatch.values()), 24);
+  }, [player.matches]);
+
+  // Calculate responsive cell width based on container
+  useEffect(() => {
+    const updateCellWidth = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const labelWidth = 20; // Width for "M1", "M2" labels
+        const padding = 16; // Total horizontal padding
+        const availableWidth = containerWidth - labelWidth - padding;
+        const calculatedWidth = Math.max(Math.floor(availableWidth / maxRounds), 16);
+        setCellWidth(calculatedWidth);
+      }
+    };
+
+    updateCellWidth();
+    window.addEventListener('resize', updateCellWidth);
+    return () => window.removeEventListener('resize', updateCellWidth);
+  }, [maxRounds]);
 
   const getKills = (matchId: number, roundNum: number): number => {
     const event = player.matches.find(
@@ -62,13 +91,25 @@ const KillGrid = ({
     return event ? event.kills : 0;
   };
 
+  const getMatchName = (matchId: number): string => {
+    return player.matchNames[matchId] || `Match ${matchId}`;
+  };
+
   const getTeamMainColor = (team: string): string => {
     const color = getTeamColor(team);
     return color === "#3b82f6" ? "bg-blue-500" : "bg-orange-500";
   };
 
+  // Calculate dot sizes based on cell width
+  const dotSizes = {
+    empty: Math.max(Math.floor(cellWidth * 0.35), 6),
+    one: Math.max(Math.floor(cellWidth * 0.5), 10),
+    two: Math.max(Math.floor(cellWidth * 0.6), 12),
+    three: Math.max(Math.floor(cellWidth * 0.7), 14),
+  };
+
   return (
-    <div className="flex flex-col gap-1 w-full bg-slate-800/50 p-2 rounded border border-slate-700">
+    <div ref={containerRef} className="flex flex-col gap-1 w-full bg-slate-800/50 px-2 py-2 rounded border border-slate-700">
       <div className="flex justify-between text-[10px] text-slate-400 mb-1 uppercase tracking-wider">
         <span>Matches (Y) vs Rounds (X)</span>
       </div>
@@ -76,40 +117,54 @@ const KillGrid = ({
       {/* Render each match as a row */}
       {Array.from({ length: matchCount }).map((_, mIdx) => {
         const displayMatchId = mIdx + 1;
+        const matchName = getMatchName(displayMatchId);
 
         return (
-          <div key={displayMatchId} className="flex items-center gap-2">
-            <span className="text-[10px] text-slate-500 w-4 font-mono">
+          <div key={displayMatchId} className="flex items-center gap-1">
+            <span className="text-[10px] text-slate-500 w-4 font-mono flex-shrink-0">
               M{displayMatchId}
             </span>
-            <div className="flex-1 flex items-center gap-[2px]">
-              {/* Render each round as a column */}
+            <div className="flex items-center flex-1">
+              {/* Render each round as a column with responsive width */}
               {Array.from({ length: maxRounds }).map((_, rIdx) => {
                 const roundNum = rIdx + 1;
                 const kills = getKills(displayMatchId, roundNum);
 
-                // Visual logic for the dots
+                // Visual logic for the dots - responsive sizing
                 let bgClass = "bg-slate-700";
-                let sizeClass = "w-1.5 h-1.5";
-                let opacity = "opacity-20";
+                let dotSize = dotSizes.empty;
+                let opacity = "opacity-30";
 
                 if (kills > 0) {
                   opacity = "opacity-100";
-                  bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_4px_rgba(59,130,246,0.8)]`;
+                  bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
 
-                  if (kills === 1) sizeClass = "w-2 h-2 rounded-full";
-                  if (kills === 2) sizeClass = "w-2.5 h-2.5 rounded-full";
-                  if (kills >= 3) sizeClass = "w-3 h-3 rounded-none rotate-45"; // Diamond for multi-kill
+                  if (kills === 1) dotSize = dotSizes.one;
+                  if (kills === 2) dotSize = dotSizes.two;
+                  if (kills >= 3) dotSize = dotSizes.three;
                 }
+
+                const isMultiKill = kills >= 3;
 
                 return (
                   <div
                     key={roundNum}
-                    className="flex items-center justify-center w-3 h-4"
-                    title={`Match ${displayMatchId}, Round ${roundNum}: ${kills} Kills`}
+                    className="flex items-center justify-center group cursor-pointer"
+                    style={{
+                      width: `${cellWidth}px`,
+                      height: `${cellWidth}px`,
+                      flex: '0 0 auto'
+                    }}
+                    title={`${matchName}\nRound ${roundNum}: ${kills} Kill${kills !== 1 ? 's' : ''}`}
                   >
                     <div
-                      className={`${sizeClass} ${bgClass} ${opacity} transition-all`}
+                      className={`${bgClass} ${opacity} transition-all group-hover:scale-125 group-hover:opacity-100 group-hover:shadow-[0_0_12px_rgba(59,130,246,1)]`}
+                      style={{
+                        width: `${dotSize}px`,
+                        height: `${dotSize}px`,
+                        borderRadius: isMultiKill ? '0' : '50%',
+                        transform: isMultiKill ? 'rotate(45deg)' : 'none',
+                      }}
                     />
                   </div>
                 );
@@ -119,14 +174,26 @@ const KillGrid = ({
         );
       })}
 
-      {/* Round Axis Labels */}
-      <div className="flex pl-6 mt-1">
-        <div className="flex-1 flex justify-between text-[9px] text-slate-500 font-mono">
-          <span>1</span>
-          <span>6</span>
-          <span>12</span>
-          <span>18</span>
-          <span>24</span>
+      {/* Round Axis Labels - Aligned with dots - All round numbers */}
+      <div className="flex items-center gap-1 mt-1">
+        <span className="w-4 flex-shrink-0"></span>
+        <div className="flex items-center flex-1">
+          {Array.from({ length: maxRounds }).map((_, idx) => {
+            const roundNum = idx + 1;
+
+            return (
+              <div
+                key={roundNum}
+                className="flex items-end justify-center"
+                style={{
+                  width: `${cellWidth}px`,
+                  flex: '0 0 auto'
+                }}
+              >
+                <span className="text-[8px] text-slate-500 font-mono">{roundNum}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
@@ -616,8 +683,8 @@ export default function MultiMatchPlayerPerformance({
         </div>
       </div>
 
-      {/* Two Column Layout: Players on left, Chart on right */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-8">
+      {/* Two Column Layout: Players on left, Chart on right - Equal widths */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column: Player Cards */}
         {teamPlayers.length > 0 && (
           <PlayerList team={teamPlayers} teamName={targetTeamName} />
