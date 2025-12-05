@@ -18,6 +18,7 @@ import {
   type PlayerStats,
   type PlayerAggregatedStats,
 } from "@/lib/multiMatchStats";
+import { APP_CONFIG } from "@/config/app.config";
 
 interface MultiMatchPlayerPerformanceProps {
   selectedDemoIds: string[];
@@ -128,7 +129,7 @@ const KillGrid = ({
             <span className="text-[10px] text-slate-500 w-4 font-mono flex-shrink-0">
               M{displayMatchId}
             </span>
-            <div className="flex items-center flex-1">
+            <div className="flex items-center flex-1 justify-between">
               {/* Render each round as a column with responsive width */}
               {Array.from({ length: maxRounds }).map((_, rIdx) => {
                 const roundNum = rIdx + 1;
@@ -157,7 +158,7 @@ const KillGrid = ({
                     style={{
                       width: `${cellWidth}px`,
                       height: `${cellWidth}px`,
-                      flex: '0 0 auto'
+                      flex: '1 0 0'
                     }}
                     title={`${matchName}\nRound ${roundNum}: ${kills} Kill${kills !== 1 ? 's' : ''}`}
                   >
@@ -181,7 +182,7 @@ const KillGrid = ({
       {/* Round Axis Labels - Aligned with dots - All round numbers */}
       <div className="flex items-center gap-1 mt-1">
         <span className="w-4 flex-shrink-0"></span>
-        <div className="flex items-center flex-1">
+        <div className="flex items-center flex-1 justify-between">
           {Array.from({ length: maxRounds }).map((_, idx) => {
             const roundNum = idx + 1;
 
@@ -191,7 +192,7 @@ const KillGrid = ({
                 className="flex items-end justify-center"
                 style={{
                   width: `${cellWidth}px`,
-                  flex: '0 0 auto'
+                  flex: '1 0 0'
                 }}
               >
                 <span className="text-[8px] text-slate-500 font-mono">{roundNum}</span>
@@ -544,6 +545,53 @@ export default function MultiMatchPlayerPerformance({
 }: MultiMatchPlayerPerformanceProps) {
   const [playerData, setPlayerData] = useState<PlayerStats[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [demoMetadata, setDemoMetadata] = useState<Record<string, any>>({});
+
+  // Fetch demo metadata to get demo names
+  useEffect(() => {
+    const fetchDemoMetadata = async () => {
+      if (selectedDemoIds.length === 0) return;
+
+      try {
+        const response = await fetch(APP_CONFIG.API.BASE_URL + '/demos');
+        const data = await response.json();
+
+        console.log("🔍 Raw API response from /demos:", data);
+        console.log("🔍 Response type:", typeof data);
+        console.log("🔍 Is array?", Array.isArray(data));
+
+        // Handle different response structures
+        let allDemos = data;
+
+        // If response is wrapped in an object, try to extract the array
+        if (!Array.isArray(data)) {
+          if (data.demos && Array.isArray(data.demos)) {
+            allDemos = data.demos;
+          } else if (data.data && Array.isArray(data.data)) {
+            allDemos = data.data;
+          } else {
+            console.error("❌ API response is not an array:", data);
+            return;
+          }
+        }
+
+        // Create a map of demo_id -> demo metadata
+        const metadataMap: Record<string, any> = {};
+        allDemos.forEach((demo: any) => {
+          if (demo.demo_id) {
+            metadataMap[demo.demo_id] = demo;
+          }
+        });
+
+        console.log("📋 Fetched demo metadata map:", metadataMap);
+        setDemoMetadata(metadataMap);
+      } catch (error) {
+        console.error("❌ Error fetching demo metadata:", error);
+      }
+    };
+
+    fetchDemoMetadata();
+  }, [selectedDemoIds]);
 
   // Process data when matchDataList changes
   useEffect(() => {
@@ -557,8 +605,23 @@ export default function MultiMatchPlayerPerformance({
       setProcessing(true);
 
       try {
+        // Enrich matchDataList with demo names from metadata
+        const enrichedMatchDataList = matchDataList.map((matchData, index) => {
+          const demoId = selectedDemoIds[index];
+          const metadata = demoMetadata[demoId];
+
+          return {
+            ...matchData,
+            demo_name: metadata?.demo_name || metadata?.name,
+            metadata: {
+              ...matchData.metadata,
+              demo_name: metadata?.demo_name || metadata?.name,
+            }
+          };
+        });
+
         const stats = transformDemoDataToPlayerStats(
-          matchDataList,
+          enrichedMatchDataList,
           selectedDemoIds
         );
         console.log("✨ Transformed Player Stats:", stats);
@@ -572,7 +635,7 @@ export default function MultiMatchPlayerPerformance({
       console.log("⚠️ No match data available");
       setPlayerData([]);
     }
-  }, [matchDataList, selectedDemoIds]);
+  }, [matchDataList, selectedDemoIds, demoMetadata]);
 
   // Find the most common team and filter players
   const { targetTeamName, teamPlayers } = useMemo(() => {

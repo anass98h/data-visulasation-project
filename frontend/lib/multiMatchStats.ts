@@ -241,11 +241,30 @@ export function transformDemoDataToPlayerStats(
   matchDataList.forEach((demoData, matchIndex) => {
     const matchId = matchIndex + 1;
 
-    // Get match name from demo data or use demo ID
-    const matchName = demoData.metadata?.mapName ||
+    // Get match name from demo data - check multiple possible locations
+    const matchName = demoData.metadata?.demo_name ||
+                      demoData.demo_name ||
+                      demoData.demoName ||
+                      demoData.name ||
+                      demoData.metadata?.name ||
+                      demoData.metadata?.mapName ||
                       demoData.mapName ||
                       selectedDemoIds[matchIndex] ||
                       `Match ${matchId}`;
+
+    // Debug logging to help identify where demo_name is located
+    if (matchIndex === 0) {
+      console.log("🔍 Demo data structure for first match:", {
+        "metadata?.demo_name": demoData.metadata?.demo_name,
+        "demo_name": demoData.demo_name,
+        "demoName": demoData.demoName,
+        "name": demoData.name,
+        "metadata?.name": demoData.metadata?.name,
+        "mapName": demoData.mapName,
+        "selectedDemoId": selectedDemoIds[matchIndex],
+        "finalMatchName": matchName
+      });
+    }
 
     // Resolve players using existing helper
     const players = resolvePlayers(demoData);
