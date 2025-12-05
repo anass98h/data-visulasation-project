@@ -72,14 +72,18 @@ const KillGrid = ({
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
         const labelWidth = 20; // Width for "M1", "M2" labels
-        const padding = 16; // Total horizontal padding
-        const availableWidth = containerWidth - labelWidth - padding;
-        const calculatedWidth = Math.max(Math.floor(availableWidth / maxRounds), 16);
+        const gap = 4; // Gap between label and grid (gap-1)
+        const padding = 16; // Total horizontal padding (px-2 = 8px each side)
+        const availableWidth = containerWidth - labelWidth - gap - padding;
+        // Use precise division without floor to fill exact width
+        const calculatedWidth = Math.max(availableWidth / maxRounds, 16);
         setCellWidth(calculatedWidth);
       }
     };
 
     updateCellWidth();
+    // Use setTimeout to ensure container is fully rendered
+    setTimeout(updateCellWidth, 100);
     window.addEventListener('resize', updateCellWidth);
     return () => window.removeEventListener('resize', updateCellWidth);
   }, [maxRounds]);
