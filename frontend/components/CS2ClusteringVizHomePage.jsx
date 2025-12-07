@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
 import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
-import { DemoSelector } from "@/components/DemoSelector";
+import { DemoSelectorHomePage } from "@/components/DemoSelectorHomePage";
 import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 
 // Clustering imports
@@ -39,7 +39,7 @@ import {
 
 const API_URL = "http://localhost:8000";
 
-const CS2Dashboard = () => {
+const CS2ClusteringVizHomePage = () => {
   const [matchData, setMatchData] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
   const [teamSideHeatmapData, setTeamSideHeatmapData] = useState(null);
@@ -1193,7 +1193,7 @@ const CS2Dashboard = () => {
               <label className="block text-sm font-medium mb-2">
                 Or select existing demo:
               </label>
-              <DemoSelector
+              <DemoSelectorHomePage
                 onDemoSelect={setSelectedDemoId}
                 selectedDemoId={selectedDemoId}
               />
@@ -1235,16 +1235,24 @@ const CS2Dashboard = () => {
                 {stats.totalRounds} rounds on {teamDisplay}
               </p>
             </div>
-            <label className="px-6 py-3 bg-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 flex items-center gap-2 shrink-0">
-              <Upload size={20} />
-              Upload Demo
-              <input
-                type="file"
-                accept=".json,.dem"
-                onChange={handleFileUpload}
-                className="hidden"
-              />
-            </label>
+            <div className="relative">
+              <label className="px-6 py-3 bg-gray-700 rounded-lg cursor-not-allowed flex items-center gap-2 shrink-0 opacity-50">
+                <Upload size={20} />
+                Upload Demo
+                <input
+                  type="file"
+                  accept=".json,.dem"
+                  disabled
+                  className="hidden"
+                />
+              </label>
+              <div className="absolute -right-2 -top-2 pointer-events-auto z-10">
+                <InfoTooltip
+                  content="Demo upload is currently disabled for this user study. Uploading and parsing new demos requires significant processing time and has been restricted to maintain consistent evaluation conditions."
+                  side="left"
+                />
+              </div>
+            </div>
           </div>
 
           {/* Demo Selector and Stats Cards on same line */}
@@ -1254,7 +1262,7 @@ const CS2Dashboard = () => {
               <label className="block text-sm font-medium mb-2 text-gray-300">
                 Switch demo:
               </label>
-              <DemoSelector
+              <DemoSelectorHomePage
                 onDemoSelect={setSelectedDemoId}
                 selectedDemoId={selectedDemoId}
               />
@@ -1313,7 +1321,7 @@ const CS2Dashboard = () => {
           {/* Map Renderer with Heatmap */}
           <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
             <div className="flex items-center gap-2 mb-3">
-              <h2 className="text-xl font-bold text-white">Player Heatmap</h2>
+              <h2 className="text-xl font-bold text-white">Match Playback</h2>
               <InfoTooltip
                 content="Visualize player positions and movement patterns across all rounds. Click 'Show Heatmap' to display hot zones on the map."
                 side="right"
@@ -1424,11 +1432,13 @@ const CS2Dashboard = () => {
               display: activeView === "player-performance" ? "block" : "none",
             }}
           >
-            <MultiMatchPlayerPerformance
-              selectedDemoIds={clusteringDemoIds}
-              matchDataList={matchDataList}
-              isLoading={loadingClusteringDemos}
-            />
+            <div className="max-h-[800px] overflow-auto custom-scrollbar bg-gray-800/30 rounded-lg border border-gray-700">
+              <MultiMatchPlayerPerformance
+                selectedDemoIds={clusteringDemoIds}
+                matchDataList={matchDataList}
+                isLoading={loadingClusteringDemos}
+              />
+            </div>
           </div>
 
           {activeView === "clustering" ? (
@@ -1932,4 +1942,4 @@ const CS2Dashboard = () => {
   );
 };
 
-export default CS2Dashboard;
+export default CS2ClusteringVizHomePage;

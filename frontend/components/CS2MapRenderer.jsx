@@ -94,16 +94,16 @@ const MAP_CONFIG = {
     radarImage: "/radar_images/de_vertigo_radar_psd.png",
   },
 };
-// Custom Tailwind classes for muted team colors for better dashboard integration
+
 const TEAM_COLORS = {
-  CT_MAIN: "#2563eb", // blue-700 equivalent
-  T_MAIN: "#dc2626", // red-700 equivalent
+  CT_MAIN: "#2563eb",
+  T_MAIN: "#dc2626",
 };
 
 const CS2MapRenderer = ({
   matchData: externalMatchData,
-  heatmapData: externalHeatmapData, // This now contains all round heatmaps (round_heatmaps_*.json)
-  teamSideHeatmapData: externalTeamSideHeatmapData, // NEW: team+side aggregated heatmaps
+  heatmapData: externalHeatmapData,
+  teamSideHeatmapData: externalTeamSideHeatmapData,
   teamMapping,
   staticTeamMapping,
   setCurrentRoundContext,
@@ -115,22 +115,20 @@ const CS2MapRenderer = ({
     externalTeamSideHeatmapData
   );
   const [selectedTeamSide, setSelectedTeamSide] = useState(null);
-  const [heatmapMode, setHeatmapMode] = useState("per-round"); // "per-round" or "team-side"
+  const [heatmapMode, setHeatmapMode] = useState("per-round");
   const [currentTick, setCurrentTick] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [selectedRound, setSelectedRound] = useState(0);
   const [radarImage, setRadarImage] = useState(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
-  const [heatmapOpacity, setHeatmapOpacity] = useState(0.5); // Heatmap opacity control (default 50%)
+  const [heatmapOpacity, setHeatmapOpacity] = useState(0.5);
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
   const playerStatesRef = useRef(new Map());
 
-  // Derive the currently displayed round number (1-indexed)
   const currentRoundNum = matchData?.rounds?.[selectedRound]?.roundNum || 1;
 
-  // Get team+side options for dropdown
   const teamSideOptions = useMemo(() => {
     if (!teamSideHeatmaps?.teamSideHeatmaps) return [];
     return Object.keys(teamSideHeatmaps.teamSideHeatmaps).map((key) => ({
@@ -139,24 +137,20 @@ const CS2MapRenderer = ({
     }));
   }, [teamSideHeatmaps]);
 
-  // Initialize selected team+side
   useEffect(() => {
     if (teamSideOptions.length > 0 && !selectedTeamSide) {
       setSelectedTeamSide(teamSideOptions[0].value);
     }
   }, [teamSideOptions, selectedTeamSide]);
 
-  // Use memo to get the specific heatmap data for the current round OR team+side
   const currentHeatmapData = useMemo(() => {
     if (
       heatmapMode === "team-side" &&
       teamSideHeatmaps?.teamSideHeatmaps &&
       selectedTeamSide
     ) {
-      // Return team+side aggregated heatmap
       const teamSideData = teamSideHeatmaps.teamSideHeatmaps[selectedTeamSide];
       if (teamSideData) {
-        // Determine if this is a T or CT side based on the key
         const isT = selectedTeamSide.includes("_as_T");
         return {
           ct: isT
@@ -169,7 +163,6 @@ const CS2MapRenderer = ({
       }
     }
 
-    // Default to per-round heatmap
     if (!allRoundHeatmapData?.roundHeatmaps) return null;
     return allRoundHeatmapData.roundHeatmaps[String(currentRoundNum)] || null;
   }, [
@@ -213,7 +206,6 @@ const CS2MapRenderer = ({
 
   useEffect(() => {
     if (externalHeatmapData) {
-      // Store all round heatmap data
       setAllRoundHeatmapData(externalHeatmapData);
     }
   }, [externalHeatmapData]);
@@ -249,17 +241,14 @@ const CS2MapRenderer = ({
     };
   };
 
-  // Modified to use the current round's specific heatmap data
   const drawHeatmap = (ctx, width, height) => {
     if (!currentHeatmapData) return;
 
-    // Use gridSize from the overall heatmap data structure
     const gridSize = allRoundHeatmapData?.gridSize || 50;
     const bounds = allRoundHeatmapData?.bounds;
 
     if (!bounds || !gridSize) return;
 
-    // Extract the per-round CT and T grids
     const ct = currentHeatmapData.ct;
     const t = currentHeatmapData.t;
 
@@ -274,15 +263,13 @@ const CS2MapRenderer = ({
     if (ct?.grid && ct.grid.length > 0) {
       for (let row = 0; row < ct.grid.length; row++) {
         for (let col = 0; col < ct.grid[row].length; col++) {
-          // Density is normalized 0-1
           const density = ct.grid[row][col];
           if (density > 0) {
-            // Improved opacity formula with better color visibility
             const alpha = Math.min(
               Math.pow(density, 0.7) * 0.8 + heatmapOpacity * 0.2,
               0.9
             );
-            ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`; // Blue for CT
+            ctx.fillStyle = `rgba(37, 99, 235, ${alpha})`;
 
             ctx.fillRect(
               col * cellWidth + drawOffset,
@@ -300,12 +287,11 @@ const CS2MapRenderer = ({
         for (let col = 0; col < t.grid[row].length; col++) {
           const density = t.grid[row][col];
           if (density > 0) {
-            // Improved opacity formula with better color visibility
             const alpha = Math.min(
               Math.pow(density, 0.7) * 0.8 + heatmapOpacity * 0.2,
               0.9
             );
-            ctx.fillStyle = `rgba(220, 38, 38, ${alpha})`; // Red for T
+            ctx.fillStyle = `rgba(220, 38, 38, ${alpha})`;
 
             ctx.fillRect(
               col * cellWidth + drawOffset,
@@ -369,7 +355,6 @@ const CS2MapRenderer = ({
     let lastRoundNum = getCurrentRound()?.roundNum;
 
     const animate = () => {
-      // Clear canvas with transparency instead of dark background
       ctx.clearRect(0, 0, width, height);
 
       if (radarImage) {
@@ -462,7 +447,7 @@ const CS2MapRenderer = ({
     radarImage,
     tickIndex,
     showHeatmap,
-    currentHeatmapData, // DEPENDENCY CHANGED: Triggers re-render when round changes
+    currentHeatmapData,
     heatmapOpacity,
     getCurrentRound,
     setCurrentRoundContext,
@@ -511,24 +496,19 @@ const CS2MapRenderer = ({
   const teamA_Name = staticTeamMapping?.CT || "CT Team";
   const teamB_Name = staticTeamMapping?.T || "T Team";
 
-  // Determine current sides based on round number (teams switch at round 13)
   const currentRound = matchData?.rounds?.[selectedRound];
   const isFirstHalf = currentRound?.roundNum < 13;
 
-  // Use teamMapping from parent if available, otherwise fallback to round-based logic
   let currentTeamA_IsCT, currentTeamB_IsCT;
 
   if (teamMapping?.CT || teamMapping?.T) {
-    // Use parent's teamMapping if available
     currentTeamA_IsCT = teamMapping?.CT === teamA_Name;
     currentTeamB_IsCT = teamMapping?.CT === teamB_Name;
   } else {
-    // Fallback: assume teamA starts as CT (rounds 1-12), then switches to T (round 13+)
     currentTeamA_IsCT = isFirstHalf;
     currentTeamB_IsCT = !isFirstHalf;
   }
 
-  // Calculate actual team scores by counting round wins up to current round
   let scoreTeamA = 0;
   let scoreTeamB = 0;
 
@@ -537,11 +517,9 @@ const CS2MapRenderer = ({
       const r = matchData.rounds[i];
       if (!r) continue;
 
-      // Determine which side each team was on for this round
       const roundNum = r.roundNum;
       const teamA_WasCT = roundNum < 13;
 
-      // Check who won this round
       if (r.winnerSide === "CT") {
         if (teamA_WasCT) scoreTeamA++;
         else scoreTeamB++;
@@ -552,11 +530,9 @@ const CS2MapRenderer = ({
     }
   }
 
-  // Set colors based on current sides - using inline styles for guaranteed rendering
-  const teamA_Color = currentTeamA_IsCT ? "#60a5fa" : "#f87171"; // blue-400 : red-400
-  const teamB_Color = currentTeamB_IsCT ? "#60a5fa" : "#f87171"; // blue-400 : red-400
+  const teamA_Color = currentTeamA_IsCT ? "#60a5fa" : "#f87171";
+  const teamB_Color = currentTeamB_IsCT ? "#60a5fa" : "#f87171";
 
-  // Get samples from current heatmap data for display
   const ctSamples = currentHeatmapData?.ct?.samples || 0;
   const tSamples = currentHeatmapData?.t?.samples || 0;
 
@@ -614,50 +590,91 @@ const CS2MapRenderer = ({
         </div>
 
         {/* Compact Controls */}
-        <div className="bg-gray-800 p-3 space-y-2 border-t border-gray-700 flex-shrink-0">
-          {/* Round Selector - Centered Segmented Bar Design */}
-          <div className="w-full rounded-lg border border-gray-700 bg-gray-900/50 overflow-hidden relative">
-            <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
-              {/* w-fit shrinks the container to content width, mx-auto centers it */}
-              <div className="flex w-fit mx-auto divide-x divide-gray-700/50">
-                {matchData.rounds?.map((r, idx) => {
-                  const isSelected = idx === selectedRound;
-                  return (
-                    <button
-                      key={idx}
-                      onClick={() => handleRoundChange(idx)}
-                      className={`
-                      flex-none w-10 h-10 flex items-center justify-center text-sm font-medium transition-colors outline-none focus:outline-none
-                      ${
-                        isSelected
-                          ? "bg-gray-700 text-white"
-                          : "text-gray-400 hover:bg-gray-800 hover:text-gray-200"
-                      }
-                    `}
-                      title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
-                    >
-                      {r.roundNum}
-                    </button>
-                  );
-                })}
+        <div className="bg-gray-800 p-3 space-y-3 border-t border-gray-700 flex-shrink-0">
+          {/* Round Selector - Two Lines (First Half / Second Half) */}
+          <div className="bg-gray-700/30 rounded-lg p-2">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-400">Round:</span>
+                <span className="text-sm font-bold text-white">
+                  {currentRoundNum} / {matchData.rounds?.length || 0}
+                </span>
+              </div>
+              {round && (
+                <span className="text-xs text-gray-400">
+                  {round.winnerSide} Win
+                </span>
+              )}
+            </div>
+
+            {/* First Half */}
+            <div className="mb-2">
+              <div className="text-xs text-gray-500 mb-1 px-1">1st Half</div>
+              <div className="flex gap-1.5 flex-wrap">
+                {matchData.rounds
+                  ?.filter((r) => r.roundNum < 13)
+                  .map((r, idx) => {
+                    const isSelected = idx === selectedRound;
+
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => handleRoundChange(idx)}
+                        className={`
+                        flex-shrink-0 w-10 h-10 flex items-center justify-center text-sm font-bold rounded transition-all
+                        ${
+                          isSelected
+                            ? "bg-blue-600 text-white scale-110 shadow-lg"
+                            : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white hover:scale-105"
+                        }
+                      `}
+                        title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
+                      >
+                        {r.roundNum}
+                      </button>
+                    );
+                  })}
               </div>
             </div>
+
+            {/* Second Half */}
+            {matchData.rounds?.some((r) => r.roundNum >= 13) && (
+              <div>
+                <div className="text-xs text-gray-500 mb-1 px-1">2nd Half</div>
+                <div className="flex gap-1.5 flex-wrap">
+                  {matchData.rounds
+                    ?.filter((r) => r.roundNum >= 13)
+                    .map((r) => {
+                      const idx = matchData.rounds.findIndex(
+                        (round) => round.roundNum === r.roundNum
+                      );
+                      const isSelected = idx === selectedRound;
+
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => handleRoundChange(idx)}
+                          className={`
+                          flex-shrink-0 w-10 h-10 flex items-center justify-center text-sm font-bold rounded transition-all
+                          ${
+                            isSelected
+                              ? "bg-blue-600 text-white scale-110 shadow-lg"
+                              : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white hover:scale-105"
+                          }
+                        `}
+                          title={`Round ${r.roundNum} - ${r.winnerSide} Win (${r.ctScore}-${r.tScore})`}
+                        >
+                          {r.roundNum}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Playback Controls */}
           <div className="flex items-center gap-2 bg-gray-700/30 p-2 rounded-lg">
-            {/* Skip to start button */}
-            {/* <button
-              onClick={() => {
-                setCurrentTick(round?.freezeTimeEndTick || 0);
-                playerStatesRef.current.clear();
-              }}
-              className="p-2.5 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-all text-gray-300"
-            >
-              <SkipBack size={18} />
-            </button> */}
-
-            {/* Play/Pause button */}
             <button
               onClick={() => setIsPlaying(!isPlaying)}
               className="p-3 bg-blue-600 rounded-lg hover:bg-blue-700 transition-all"
@@ -669,16 +686,6 @@ const CS2MapRenderer = ({
               )}
             </button>
 
-            {/* Skip to end button */}
-            {/* <button
-              onClick={() => setCurrentTick(round?.endTick || 0)}
-              className="p-2.5 bg-gray-700/80 rounded-lg hover:bg-gray-600 transition-all text-gray-300"
-              disabled={!round}
-            >
-              <SkipForward size={18} />
-            </button> */}
-
-            {/* Progress bar */}
             <div className="flex-1 min-w-0">
               <input
                 type="range"
@@ -690,7 +697,6 @@ const CS2MapRenderer = ({
               />
             </div>
 
-            {/* Speed selector */}
             <select
               value={playbackSpeed}
               onChange={handleSpeedChange}
@@ -703,79 +709,77 @@ const CS2MapRenderer = ({
             </select>
           </div>
 
-          {/* Heatmap Controls */}
+          {/* Heatmap Controls - Horizontal Layout */}
           {(allRoundHeatmapData || teamSideHeatmaps) && (
-            <div className="bg-gray-700/30 rounded-lg p-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <button
-                  onClick={() => setShowHeatmap(!showHeatmap)}
-                  className={`px-4 py-4 rounded-lg text-sm font-semibold transition-all ${
-                    showHeatmap
-                      ? "bg-green-600 hover:bg-green-700 text-white"
-                      : "bg-blue-600 hover:bg-gray-600 text-gray-300"
-                  }`}
-                >
-                  {showHeatmap ? "Hide" : "Show"} Heatmap
-                </button>
+            <div className="flex items-center gap-2 bg-gray-700/30 p-2 rounded-lg flex-wrap">
+              <button
+                onClick={() => setShowHeatmap(!showHeatmap)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                  showHeatmap
+                    ? "bg-green-600 hover:bg-green-700 text-white"
+                    : "bg-gray-600 hover:bg-gray-500 text-gray-300"
+                }`}
+              >
+                {showHeatmap ? "Hide" : "Show"} Heatmap
+              </button>
 
-                {showHeatmap && (
-                  <>
-                    <select
-                      value={heatmapMode}
-                      onChange={(e) => setHeatmapMode(e.target.value)}
-                      className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
-                      disabled={!allRoundHeatmapData || !teamSideHeatmaps}
-                    >
-                      <option value="per-round" disabled={!allRoundHeatmapData}>
-                        Per Round
-                      </option>
-                      <option value="team-side" disabled={!teamSideHeatmaps}>
-                        Team+Side
-                      </option>
-                    </select>
+              {showHeatmap && (
+                <>
+                  <select
+                    value={heatmapMode}
+                    onChange={(e) => setHeatmapMode(e.target.value)}
+                    className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
+                    disabled={!allRoundHeatmapData || !teamSideHeatmaps}
+                  >
+                    <option value="per-round" disabled={!allRoundHeatmapData}>
+                      Per Round
+                    </option>
+                    <option value="team-side" disabled={!teamSideHeatmaps}>
+                      Team+Side
+                    </option>
+                  </select>
 
-                    {heatmapMode === "team-side" &&
-                      teamSideOptions.length > 0 && (
-                        <select
-                          value={selectedTeamSide || ""}
-                          onChange={(e) => setSelectedTeamSide(e.target.value)}
-                          className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
-                        >
-                          {teamSideOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      )}
-
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">Opacity:</span>
-                      <input
-                        type="range"
-                        min="0"
-                        max="100"
-                        value={heatmapOpacity * 100}
-                        onChange={(e) =>
-                          setHeatmapOpacity(parseInt(e.target.value) / 100)
-                        }
-                        className="w-20 h-2 bg-gray-600/50 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer"
-                      />
-                      <span className="text-xs text-gray-300 min-w-[3ch]">
-                        {Math.round(heatmapOpacity * 100)}%
-                      </span>
-                    </div>
-
-                    {currentHeatmapData && (
-                      <span className="text-xs text-gray-400">
-                        {heatmapMode === "team-side"
-                          ? `${ctSamples + tSamples} samples`
-                          : `CT: ${ctSamples} | T: ${tSamples}`}
-                      </span>
+                  {heatmapMode === "team-side" &&
+                    teamSideOptions.length > 0 && (
+                      <select
+                        value={selectedTeamSide || ""}
+                        onChange={(e) => setSelectedTeamSide(e.target.value)}
+                        className="px-3 py-2 bg-gray-700/80 rounded-lg text-sm text-gray-200 hover:bg-gray-600 transition-all cursor-pointer border-0 outline-none"
+                      >
+                        {teamSideOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
                     )}
-                  </>
-                )}
-              </div>
+
+                  <div className="flex items-center gap-2 ml-auto">
+                    <span className="text-xs text-gray-400">Opacity:</span>
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      value={heatmapOpacity * 100}
+                      onChange={(e) =>
+                        setHeatmapOpacity(parseInt(e.target.value) / 100)
+                      }
+                      className="w-24 h-2 bg-gray-600/50 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:cursor-pointer"
+                    />
+                    <span className="text-xs text-gray-300 min-w-[3ch]">
+                      {Math.round(heatmapOpacity * 100)}%
+                    </span>
+                  </div>
+
+                  {currentHeatmapData && (
+                    <span className="text-xs text-gray-400 ml-2">
+                      {heatmapMode === "team-side"
+                        ? `${ctSamples + tSamples} samples`
+                        : `CT: ${ctSamples} | T: ${tSamples}`}
+                    </span>
+                  )}
+                </>
+              )}
             </div>
           )}
         </div>

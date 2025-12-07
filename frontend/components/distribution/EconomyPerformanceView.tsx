@@ -41,17 +41,18 @@ export function EconomyPerformanceView({
   }>({ teamA: null, teamB: null });
 
   // Dynamic team mapping for current round (used by economy view)
-  const [dynamicTeamMapping, setDynamicTeamMapping] = useState<DynamicTeamMapping>({
-    CT: teamMapping.CT || "CT",
-    T: teamMapping.T || "T"
-  });
+  const [dynamicTeamMapping, setDynamicTeamMapping] =
+    useState<DynamicTeamMapping>({
+      CT: teamMapping.CT || "CT",
+      T: teamMapping.T || "T",
+    });
 
   // Update dynamic team mapping when static mapping changes
   useEffect(() => {
     if (teamMapping.CT && teamMapping.T) {
       setDynamicTeamMapping({
         CT: teamMapping.CT,
-        T: teamMapping.T
+        T: teamMapping.T,
       });
     }
   }, [teamMapping]);
@@ -64,7 +65,10 @@ export function EconomyPerformanceView({
           1: teamMapping.CT,
           2: teamMapping.T,
         };
-        const calculatedEconomy = calculateEconomy([matchData], teamNamesForCalc);
+        const calculatedEconomy = calculateEconomy(
+          [matchData],
+          teamNamesForCalc
+        );
         setEconomyData(calculatedEconomy);
       } catch (error) {
         console.error("Error calculating economy:", error);
@@ -99,12 +103,15 @@ export function EconomyPerformanceView({
   }, [matchData, teamMapping]);
 
   return (
-    <div className="bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+    <div
+      className="flex flex-col"
+      style={{ maxHeight: "850px", height: "100%" }}
+    >
       {/* View Switcher */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-4 flex-shrink-0">
         <button
           onClick={() => setCurrentView("economy")}
-          className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${
             currentView === "economy"
               ? "bg-blue-600 text-white"
               : "bg-gray-700 text-gray-300 hover:bg-gray-600"
@@ -114,7 +121,7 @@ export function EconomyPerformanceView({
         </button>
         <button
           onClick={() => setCurrentView("performance")}
-          className={`flex-1 px-4 py-3 font-medium rounded-lg transition-colors ${
+          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${
             currentView === "performance"
               ? "bg-blue-600 text-white"
               : "bg-gray-700 text-gray-300 hover:bg-gray-600"
@@ -124,54 +131,88 @@ export function EconomyPerformanceView({
         </button>
       </div>
 
-      {/* Economy View */}
-      {currentView === "economy" && (
-        <div>
-          {/* Team Side Indicators */}
-          <div className="flex justify-between items-center mb-4 px-4">
-            <span className="flex items-center gap-1 text-blue-400">
-              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
-              {dynamicTeamMapping.CT || "CT"}
-            </span>
-            <span className="flex items-center gap-1 text-red-400">
-              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-              {dynamicTeamMapping.T || "T"}
-            </span>
-          </div>
+      {/* Content area with scrolling - takes remaining space */}
+      <div
+        className="flex-1 min-h-0 overflow-y-auto pr-2"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#4b5563 #1f2937",
+        }}
+      >
+        <style jsx>{`
+          div::-webkit-scrollbar {
+            width: 6px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #1f2937;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 3px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+          }
+        `}</style>
 
-          {/* Economy Cards */}
-          <div className="mb-4">
-            <Economy
-              economyData={economyData}
-              teamNames={teamNames}
-              teamMapping={dynamicTeamMapping}
-              staticTeamMapping={teamMapping}
-            />
-          </div>
-
-          {/* Line Chart */}
-          <div className="flex-1 min-h-0 overflow-auto">
-            <LineChart seriesData={lineChartData} />
-          </div>
-        </div>
-      )}
-
-      {/* Performance View */}
-      {currentView === "performance" && (
-        <div>
-          {performanceData && teams.teamA && teams.teamB ? (
-            <PlayerGrid
-              performanceData={performanceData}
-              teamA={teams.teamA}
-              teamB={teams.teamB}
-            />
-          ) : (
-            <div className="text-gray-400 text-center py-12">
-              Loading performance data...
+        {/* Economy View */}
+        {currentView === "economy" && (
+          <div className="flex flex-col justify-between space-y-4 gap-4">
+            {/* Team Side Indicators */}
+            <div className="flex justify-between items-center px-2">
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                <span className="text-blue-400">
+                  {dynamicTeamMapping.CT || "CT"}
+                </span>
+              </span>
+              <span className="flex items-center gap-2 text-sm font-medium">
+                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span className="text-red-400">
+                  {dynamicTeamMapping.T || "T"}
+                </span>
+              </span>
             </div>
-          )}
-        </div>
-      )}
+
+            {/* Economy Cards */}
+            <div>
+              <Economy
+                economyData={economyData}
+                teamNames={teamNames}
+                teamMapping={dynamicTeamMapping}
+                staticTeamMapping={
+                  teamMapping.CT && teamMapping.T
+                    ? { CT: teamMapping.CT, T: teamMapping.T }
+                    : undefined
+                }
+              />
+            </div>
+
+            {/* Line Chart */}
+            <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
+              <LineChart seriesData={lineChartData} />
+            </div>
+          </div>
+        )}
+
+        {/* Performance View */}
+        {currentView === "performance" && (
+          <div>
+            {performanceData && teams.teamA && teams.teamB ? (
+              <PlayerGrid
+                performanceData={performanceData}
+                teamA={teams.teamA}
+                teamB={teams.teamB}
+              />
+            ) : (
+              <div className="text-gray-400 text-center py-12">
+                Loading performance data...
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

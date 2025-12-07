@@ -28,7 +28,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    "components/CS2MapRenderer.jsx"
+    "components/CS2MapRenderer.jsx",
+    "app/page.copy.tsx.bak"
   ],
   "exclude": ["node_modules"]
 }
