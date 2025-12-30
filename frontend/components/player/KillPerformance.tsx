@@ -135,12 +135,13 @@ export function KillPerformance({
 
     // Draw each series
     seriesData.forEach((series, seriesIdx) => {
-      const lineColor = d3.schemeTableau10[seriesIdx % 10];
+      // Prepare data points
+      const dataPoints = series.x.map((x, i) => ({ x, y: series.y[i] }));
 
       // Split data at round 13 (halftime)
       const halftimeIndex = series.x.findIndex((r) => r > 12);
 
-      // Helper function to render line segment
+      // Helper function to render solid line segment
       const renderSegment = (
         data: { x: number; y: number }[],
         side: "CT" | "T"
@@ -150,21 +151,15 @@ export function KillPerformance({
           .x((d) => xScale(d.x))
           .y((d) => yScale(d.y));
 
-        const path = svg
+        svg
           .append("path")
           .datum(data)
           .attr("fill", "none")
           .attr("stroke", SIDE_COLORS[side])
           .attr("stroke-width", 2)
-          .attr("stroke-dasharray", side === "T" ? "5,5" : null)
           .attr("d", line)
           .attr("opacity", 0.8);
-
-        return path;
       };
-
-      // Prepare data points
-      const dataPoints = series.x.map((x, i) => ({ x, y: series.y[i] }));
 
       if (halftimeIndex === -1 || halftimeIndex === 0) {
         // No halftime or all second half
@@ -177,12 +172,12 @@ export function KillPerformance({
         renderSegment(firstHalfData, firstHalfSide);
 
         // Second half
-        const secondHalfData = dataPoints.slice(halftimeIndex - 1); // Include last point of first half for continuity
+        const secondHalfData = dataPoints.slice(halftimeIndex - 1);
         const secondHalfSide = series.sides[halftimeIndex] || "T";
         renderSegment(secondHalfData, secondHalfSide);
       }
 
-      // Draw points
+      // Draw points (colored by side: CT=blue, T=red)
       svg
         .selectAll(`.dot-${seriesIdx}`)
         .data(dataPoints)
@@ -192,7 +187,10 @@ export function KillPerformance({
         .attr("cx", (d) => xScale(d.x))
         .attr("cy", (d) => yScale(d.y))
         .attr("r", 4)
-        .attr("fill", lineColor)
+        .attr("fill", (d) => {
+          const side = series.sides[d.x - 1] || "CT";
+          return SIDE_COLORS[side];
+        })
         .attr("stroke", "#1f2937")
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
