@@ -16,10 +16,10 @@ export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
   const cardHeight = APP_CONFIG.PLAYER_PERFORMANCE.CHART_HEIGHT;
 
   return (
-    <div className="grid grid-cols-[1fr_auto_1fr] gap-6">
+    <div className="grid grid-cols-2 gap-4">
       {/* Team A - Left Side */}
       <div className="space-y-3">
-        <h2 className="text-xl font-bold text-center text-blue-400 mb-4">
+        <h2 className="text-lg font-bold text-center text-blue-400 mb-3">
           {teamA.name}
         </h2>
         {teamA.players.length === 0 && (
@@ -49,14 +49,9 @@ export function PlayerGrid({ performanceData, teamA, teamB }: PlayerGridProps) {
         })}
       </div>
 
-      {/* VS Divider */}
-      <div className="flex items-center justify-center px-4">
-        <div className="text-4xl font-bold text-gray-500">VS</div>
-      </div>
-
       {/* Team B - Right Side */}
       <div className="space-y-3">
-        <h2 className="text-xl font-bold text-center text-red-400 mb-4">
+        <h2 className="text-lg font-bold text-center text-red-400 mb-3">
           {teamB.name}
         </h2>
         {teamB.players.length === 0 && (
