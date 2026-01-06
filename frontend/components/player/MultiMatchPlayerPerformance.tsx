@@ -349,34 +349,8 @@ const PlayerCard = ({
         selectedDemoIds={selectedDemoIds}
       />
 
-      {/* Footer Stats: Range & Consistency */}
-      <div className="grid grid-cols-2 gap-4 items-end">
-        {/* Usual Range Viz */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-            <span>Usual Range</span>
-            <StatTooltip content="The typical score for this player. Most of their games will finish with a kill count inside this colored bar." />
-            <span className="ml-auto">
-              {stats.rangeLower} - {stats.rangeUpper} Kills
-            </span>
-          </div>
-          <div className="relative h-3 bg-slate-900 rounded-full w-full overflow-hidden border border-slate-700">
-            {/* The Usual Range Band */}
-            <div
-              className={`absolute h-full ${barColor} opacity-30`}
-              style={{
-                left: `${rangeLeftPct}%`,
-                width: `${rangeWidthPct}%`,
-              }}
-            />
-            {/* The Average Dot */}
-            <div
-              className={`absolute h-full w-1 ${barColor} top-0`}
-              style={{ left: `${avgPct}%` }}
-            />
-          </div>
-        </div>
-
+      {/* Footer Stats: Consistency Only */}
+      <div className="flex justify-end">
         {/* Consistency */}
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-1 mb-1">
