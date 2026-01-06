@@ -159,22 +159,6 @@ export function EconomyPerformanceView({
         {/* Economy View */}
         {currentView === "economy" && (
           <div className="flex flex-col justify-between space-y-4 gap-4">
-            {/* Team Side Indicators */}
-            <div className="flex justify-between items-center px-2">
-              <span className="flex items-center gap-2 text-sm font-medium">
-                <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
-                <span className="text-blue-400">
-                  {dynamicTeamMapping.CT || "CT"}
-                </span>
-              </span>
-              <span className="flex items-center gap-2 text-sm font-medium">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-red-400">
-                  {dynamicTeamMapping.T || "T"}
-                </span>
-              </span>
-            </div>
-
             {/* Economy Cards */}
             <div>
               <Economy
