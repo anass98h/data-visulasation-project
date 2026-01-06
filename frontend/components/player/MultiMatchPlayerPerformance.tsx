@@ -211,16 +211,15 @@ const KillGrid = ({
                   return (
                     <div
                       key={roundNum}
-                      className="flex items-center justify-center group cursor-pointer"
+                      className="flex items-center justify-center group cursor-pointer relative"
                       style={{
                         width: `${cellWidth}px`,
                         height: `${cellWidth}px`,
                         flex: '1 0 0'
                       }}
-                      title={`${matchName}\nRound ${roundNum}: ${kills} Kill${kills !== 1 ? 's' : ''}`}
                     >
                       <div
-                        className={`${bgClass} ${opacity} transition-all group-hover:scale-125 group-hover:opacity-100 group-hover:shadow-[0_0_12px_rgba(59,130,246,1)]`}
+                        className={`${bgClass} ${opacity} group-hover:scale-125 group-hover:opacity-100 group-hover:shadow-[0_0_12px_rgba(59,130,246,1)]`}
                         style={{
                           width: `${dotSize}px`,
                           height: `${dotSize}px`,
@@ -228,6 +227,11 @@ const KillGrid = ({
                           transform: isMultiKill ? 'rotate(45deg)' : 'none',
                         }}
                       />
+                      {/* Custom instant tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-950 border border-slate-700 rounded shadow-xl text-[10px] text-slate-300 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none whitespace-nowrap">
+                        <div className="font-medium text-slate-100">{matchName}</div>
+                        <div>Round {roundNum}: {kills} Kill{kills !== 1 ? 's' : ''}</div>
+                      </div>
                     </div>
                   );
                 })}

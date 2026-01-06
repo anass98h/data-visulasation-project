@@ -131,7 +131,8 @@ export function KillPerformance({
       .style("font-size", "12px")
       .style("pointer-events", "none")
       .style("opacity", 0)
-      .style("z-index", 1000);
+      .style("z-index", 1000)
+      .style("transition", "none");
 
     // Draw each series
     seriesData.forEach((series, seriesIdx) => {
@@ -194,6 +195,7 @@ export function KillPerformance({
         .attr("stroke", "#1f2937")
         .attr("stroke-width", 2)
         .style("cursor", "pointer")
+        .style("transition", "none")
         .on("mouseover", function (event, d) {
           const roundNum = d.x;
           const kills = d.y;
