@@ -1308,8 +1308,8 @@ const CS2Dashboard = () => {
         </div>
         {/* Rest of your dashboard... */}
 
-        {/* Map Renderer and Economy side by side */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Map Renderer - full width (Economy hidden for user study) */}
+        <div className="grid grid-cols-1 gap-4">
           {/* Map Renderer with Heatmap */}
           <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
             <div className="flex items-center gap-2 mb-3">
@@ -1331,7 +1331,7 @@ const CS2Dashboard = () => {
             </div>
           </div>
 
-          {/* Economy & Performance View */}
+          {/* Economy & Performance View - temporarily hidden for user study
           {matchData && initialTeamMapping.CT && initialTeamMapping.T && (
             <div className="bg-gray-800 rounded-lg shadow-lg p-4 border border-gray-700">
               <div className="flex items-center gap-2 mb-3">
@@ -1350,6 +1350,7 @@ const CS2Dashboard = () => {
               />
             </div>
           )}
+          */}
         </div>
 
         {/* Clustering Analysis Section */}

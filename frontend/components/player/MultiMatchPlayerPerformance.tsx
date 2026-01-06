@@ -8,7 +8,9 @@ import {
   Activity,
   Info,
   HelpCircle,
+  ChevronDown,
 } from "lucide-react";
+import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
 import {
   transformDemoDataToPlayerStats,
   aggregatePlayerStats,
@@ -50,12 +52,17 @@ const StatTooltip = ({ content }: { content: string }) => (
 const KillGrid = ({
   player,
   matchCount,
+  matchDataList,
+  selectedDemoIds,
 }: {
   player: PlayerStats;
   matchCount: number;
+  matchDataList: any[];
+  selectedDemoIds: string[];
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cellWidth, setCellWidth] = useState(20);
+  const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null);
 
   // Calculate the actual maximum rounds across all matches for responsiveness
   const maxRounds = useMemo(() => {
@@ -105,6 +112,48 @@ const KillGrid = ({
     return color === "#3b82f6" ? "bg-blue-500" : "bg-orange-500";
   };
 
+  // Get match data and team mapping for EconomyPerformanceView
+  const getMatchDataForView = (matchId: number) => {
+    const matchIndex = matchId - 1; // matchId is 1-indexed
+    if (matchIndex < 0 || matchIndex >= matchDataList.length) return null;
+
+    const matchData = matchDataList[matchIndex];
+    if (!matchData) return null;
+
+    // Extract team names from ticks data (same logic as CS2ClusteringVizHomePage)
+    let ctTeam: string | null = null;
+    let tTeam: string | null = null;
+
+    if (matchData.ticks && Array.isArray(matchData.ticks)) {
+      for (const tick of matchData.ticks) {
+        if (tick.side === "CT" && !ctTeam) {
+          ctTeam = tick.team;
+        }
+        if (tick.side === "T" && !tTeam) {
+          tTeam = tick.team;
+        }
+        if (ctTeam && tTeam) break;
+      }
+    }
+
+    // If no team names found from ticks, return null to prevent loading state
+    if (!ctTeam || !tTeam) {
+      console.warn(`Could not extract team names for match ${matchId}`);
+      return null;
+    }
+
+    return {
+      matchData,
+      teamMapping: { CT: ctTeam, T: tTeam },
+      teamNames: { 1: ctTeam, 2: tTeam }
+    };
+  };
+
+  // Toggle expanded match
+  const handleMatchClick = (matchId: number) => {
+    setExpandedMatchId(expandedMatchId === matchId ? null : matchId);
+  };
+
   // Calculate dot sizes based on cell width
   const dotSizes = {
     empty: Math.max(Math.floor(cellWidth * 0.35), 6),
@@ -114,66 +163,114 @@ const KillGrid = ({
   };
 
   return (
-    <div ref={containerRef} className="flex flex-col gap-1 w-full bg-slate-800/50 px-2 py-2 rounded border border-slate-700">
-      <div className="flex justify-between text-[10px] text-slate-400 mb-1 uppercase tracking-wider">
-        <span>Matches (Y) vs Rounds (X)</span>
-      </div>
-
+    <div ref={containerRef} className="flex flex-col gap-1 w-full bg-slate-800/50 px-1 py-2 rounded border border-slate-700">
       {/* Render each match as a row */}
       {Array.from({ length: matchCount }).map((_, mIdx) => {
         const displayMatchId = mIdx + 1;
         const matchName = getMatchName(displayMatchId);
+        const isExpanded = expandedMatchId === displayMatchId;
+        const matchViewData = getMatchDataForView(displayMatchId);
 
         return (
-          <div key={displayMatchId} className="flex items-center gap-1">
-            <span className="text-[10px] text-slate-500 w-4 font-mono flex-shrink-0">
-              M{displayMatchId}
-            </span>
-            <div className="flex items-center flex-1 justify-between">
-              {/* Render each round as a column with responsive width */}
-              {Array.from({ length: maxRounds }).map((_, rIdx) => {
-                const roundNum = rIdx + 1;
-                const kills = getKills(displayMatchId, roundNum);
+          <div key={displayMatchId} className="flex flex-col">
+            {/* Match row */}
+            <div className="flex items-center gap-1">
+              {/* Clickable match label */}
+              <button
+                onClick={() => handleMatchClick(displayMatchId)}
+                className="flex items-center gap-0.5 text-[10px] text-slate-400 hover:text-blue-400 w-8 font-mono flex-shrink-0 transition-colors cursor-pointer group"
+                title={`Click to ${isExpanded ? 'collapse' : 'expand'} ${matchName}`}
+              >
+                <ChevronDown
+                  className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
+                />
+                <span className="group-hover:underline">M{displayMatchId}</span>
+              </button>
+              <div className="flex items-center flex-1 justify-between">
+                {/* Render each round as a column with responsive width */}
+                {Array.from({ length: maxRounds }).map((_, rIdx) => {
+                  const roundNum = rIdx + 1;
+                  const kills = getKills(displayMatchId, roundNum);
 
-                // Visual logic for the dots - responsive sizing
-                let bgClass = "bg-slate-700";
-                let dotSize = dotSizes.empty;
-                let opacity = "opacity-30";
+                  // Visual logic for the dots - responsive sizing
+                  let bgClass = "bg-slate-700";
+                  let dotSize = dotSizes.empty;
+                  let opacity = "opacity-30";
 
-                if (kills > 0) {
-                  opacity = "opacity-100";
-                  bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
+                  if (kills > 0) {
+                    opacity = "opacity-100";
+                    bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
 
-                  if (kills === 1) dotSize = dotSizes.one;
-                  if (kills === 2) dotSize = dotSizes.two;
-                  if (kills >= 3) dotSize = dotSizes.three;
-                }
+                    if (kills === 1) dotSize = dotSizes.one;
+                    if (kills === 2) dotSize = dotSizes.two;
+                    if (kills >= 3) dotSize = dotSizes.three;
+                  }
 
-                const isMultiKill = kills >= 3;
+                  const isMultiKill = kills >= 3;
 
-                return (
-                  <div
-                    key={roundNum}
-                    className="flex items-center justify-center group cursor-pointer"
-                    style={{
-                      width: `${cellWidth}px`,
-                      height: `${cellWidth}px`,
-                      flex: '1 0 0'
-                    }}
-                    title={`${matchName}\nRound ${roundNum}: ${kills} Kill${kills !== 1 ? 's' : ''}`}
-                  >
+                  return (
                     <div
-                      className={`${bgClass} ${opacity} transition-all group-hover:scale-125 group-hover:opacity-100 group-hover:shadow-[0_0_12px_rgba(59,130,246,1)]`}
+                      key={roundNum}
+                      className="flex items-center justify-center group cursor-pointer relative"
                       style={{
-                        width: `${dotSize}px`,
-                        height: `${dotSize}px`,
-                        borderRadius: isMultiKill ? '0' : '50%',
-                        transform: isMultiKill ? 'rotate(45deg)' : 'none',
+                        width: `${cellWidth}px`,
+                        height: `${cellWidth}px`,
+                        flex: '1 0 0'
                       }}
-                    />
+                    >
+                      <div
+                        className={`${bgClass} ${opacity} group-hover:scale-125 group-hover:opacity-100 group-hover:shadow-[0_0_12px_rgba(59,130,246,1)]`}
+                        style={{
+                          width: `${dotSize}px`,
+                          height: `${dotSize}px`,
+                          borderRadius: isMultiKill ? '0' : '50%',
+                          transform: isMultiKill ? 'rotate(45deg)' : 'none',
+                        }}
+                      />
+                      {/* Custom instant tooltip */}
+                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 px-2 py-1 bg-slate-950 border border-slate-700 rounded shadow-xl text-[10px] text-slate-300 z-50 opacity-0 invisible group-hover:opacity-100 group-hover:visible pointer-events-none whitespace-nowrap">
+                        <div className="font-medium text-slate-100">{matchName}</div>
+                        <div>Round {roundNum}: {kills} Kill{kills !== 1 ? 's' : ''}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Expandable EconomyPerformanceView section */}
+            <div
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${
+                isExpanded ? 'max-h-[900px] opacity-100 mt-2' : 'max-h-0 opacity-0'
+              }`}
+            >
+              {isExpanded && (
+                <div className="bg-slate-900/80 rounded-lg border border-slate-600 p-4 ml-8">
+                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
+                    <h4 className="text-sm font-semibold text-slate-200">
+                      {matchName} - Detailed View
+                    </h4>
+                    <button
+                      onClick={() => setExpandedMatchId(null)}
+                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      ✕ Close
+                    </button>
                   </div>
-                );
-              })}
+                  {matchViewData ? (
+                    <EconomyPerformanceView
+                      matchData={matchViewData.matchData}
+                      teamMapping={matchViewData.teamMapping}
+                      teamNames={matchViewData.teamNames}
+                    />
+                  ) : (
+                    <div className="text-center py-8 text-slate-400">
+                      <p>Unable to load match details.</p>
+                      <p className="text-xs mt-1 text-slate-500">Match data may be incomplete or missing team information.</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         );
@@ -181,7 +278,7 @@ const KillGrid = ({
 
       {/* Round Axis Labels - Aligned with dots - All round numbers */}
       <div className="flex items-center gap-1 mt-1">
-        <span className="w-4 flex-shrink-0"></span>
+        <span className="w-8 flex-shrink-0"></span>
         <div className="flex items-center flex-1 justify-between">
           {Array.from({ length: maxRounds }).map((_, idx) => {
             const roundNum = idx + 1;
@@ -212,9 +309,13 @@ const KillGrid = ({
 const PlayerCard = ({
   player,
   stats,
+  matchDataList,
+  selectedDemoIds,
 }: {
   player: PlayerStats;
   stats: PlayerAggregatedStats;
+  matchDataList: any[];
+  selectedDemoIds: string[];
 }) => {
   const teamColorHex = getTeamColor(player.team);
   const teamColor =
@@ -230,72 +331,30 @@ const PlayerCard = ({
   const avgPct = (parseFloat(stats.akm) / maxScale) * 100;
 
   return (
-    <div className="bg-slate-800 border-l-4 border-slate-700 hover:border-slate-500 transition-colors rounded-r-md p-3 mb-3 shadow-lg flex flex-col gap-3">
-      {/* Header: Player Name + Stats */}
-      <div className="flex justify-between items-center border-b border-slate-700 pb-2">
-        <div className="flex items-center gap-2">
-          <User className={`w-4 h-4 ${teamColor}`} />
-          <span className="font-bold text-slate-100">{player.name}</span>
-        </div>
-        <div className="flex items-center gap-3 text-xs">
-          {/* AKM */}
-          <div className="flex flex-col items-end group">
-            <div className="flex items-center">
-              <span className="text-slate-400 uppercase text-[9px] cursor-help">
-                Avg / Match
-              </span>
-              <StatTooltip content="The average number of enemies this player eliminates in a full game." />
-            </div>
-            <span className={`font-mono font-bold text-base ${teamColor}`}>
-              {stats.akm}
-            </span>
-          </div>
-          <div className="w-[1px] h-6 bg-slate-700"></div>
-          {/* KPR */}
-          <div className="flex flex-col items-end">
-            <div className="flex items-center">
-              <span className="text-slate-400 uppercase text-[9px] cursor-help">
-                Kills / Rnd
-              </span>
-              <StatTooltip content="Average kills per round. Useful because some games are longer than others. 0.75+ is very good." />
-            </div>
-            <span className="font-mono text-slate-200">{stats.kpr}</span>
-            <span className="text-[9px] text-slate-500">{stats.kprText}</span>
-          </div>
+    <div className="bg-slate-800 border-l-4 border-slate-700 hover:border-slate-500 transition-colors rounded-r-md p-2 mb-3 shadow-lg flex flex-col gap-2">
+      {/* Player Name - Above Grid */}
+      <div className="flex items-center gap-2">
+        <User className={`w-4 h-4 ${teamColor}`} />
+        <span className="font-bold text-slate-100">{player.name}</span>
+        <div className="ml-auto flex items-center gap-2 text-xs">
+          <span className={`font-mono font-bold ${teamColor}`}>{stats.akm}</span>
+          <span className="text-slate-500 text-[9px]">AKM</span>
+          <span className="text-slate-600">|</span>
+          <span className="font-mono text-slate-300">{stats.kpr}</span>
+          <span className="text-slate-500 text-[9px]">KPR</span>
         </div>
       </div>
 
-      {/* The Grid Visualization */}
-      <KillGrid player={player} matchCount={player.totalMatches} />
+      {/* The Grid Visualization - Full Width */}
+      <KillGrid
+        player={player}
+        matchCount={player.totalMatches}
+        matchDataList={matchDataList}
+        selectedDemoIds={selectedDemoIds}
+      />
 
-      {/* Footer Stats: Range & Consistency */}
-      <div className="grid grid-cols-2 gap-4 items-end">
-        {/* Usual Range Viz */}
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center gap-1 text-[10px] text-slate-400">
-            <span>Usual Range</span>
-            <StatTooltip content="The typical score for this player. Most of their games will finish with a kill count inside this colored bar." />
-            <span className="ml-auto">
-              {stats.rangeLower} - {stats.rangeUpper} Kills
-            </span>
-          </div>
-          <div className="relative h-3 bg-slate-900 rounded-full w-full overflow-hidden border border-slate-700">
-            {/* The Usual Range Band */}
-            <div
-              className={`absolute h-full ${barColor} opacity-30`}
-              style={{
-                left: `${rangeLeftPct}%`,
-                width: `${rangeWidthPct}%`,
-              }}
-            />
-            {/* The Average Dot */}
-            <div
-              className={`absolute h-full w-1 ${barColor} top-0`}
-              style={{ left: `${avgPct}%` }}
-            />
-          </div>
-        </div>
-
+      {/* Footer Stats: Consistency Only */}
+      <div className="flex justify-end">
         {/* Consistency */}
         <div className="flex flex-col items-end">
           <div className="flex items-center gap-1 mb-1">
@@ -323,9 +382,13 @@ const PlayerCard = ({
 const PlayerList = ({
   team,
   teamName,
+  matchDataList,
+  selectedDemoIds,
 }: {
   team: PlayerStats[];
   teamName: string;
+  matchDataList: any[];
+  selectedDemoIds: string[];
 }) => {
   const teamColor = getTeamColor(teamName);
   const colorClass = teamColor === "#3b82f6" ? "text-blue-400" : "text-orange-400";
@@ -355,6 +418,8 @@ const PlayerList = ({
             key={player.id}
             player={player}
             stats={aggregatePlayerStats(player)}
+            matchDataList={matchDataList}
+            selectedDemoIds={selectedDemoIds}
           />
         ))}
       </div>
@@ -754,7 +819,12 @@ export default function MultiMatchPlayerPerformance({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column: Player Cards */}
         {teamPlayers.length > 0 && (
-          <PlayerList team={teamPlayers} teamName={targetTeamName} />
+          <PlayerList
+            team={teamPlayers}
+            teamName={targetTeamName}
+            matchDataList={matchDataList}
+            selectedDemoIds={selectedDemoIds}
+          />
         )}
 
         {/* Right Column: AKM Ranking Chart */}

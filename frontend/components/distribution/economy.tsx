@@ -13,7 +13,8 @@ const Economy = ({
   teamMapping,
   staticTeamMapping,
 }: EconomyProps) => {
-  console.log("Economy component is rendering");
+  // Hidden for now
+  return null;
 
   // teamNames[1] is the team that started as CT
   // teamNames[2] is the team that started as T
