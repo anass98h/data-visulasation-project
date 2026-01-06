@@ -960,7 +960,7 @@ const CS2ClusteringVizHomePage = () => {
 
         setLogs((prev) => [
           ...prev,
-          `⚠️  Small dataset (${numRows} rounds) - parameters auto-adjusted for stability`,
+          `⚠️  Small dataset (${numRows} rounds)`, // - parameters auto-adjusted for stability`,
         ]);
       }
 
