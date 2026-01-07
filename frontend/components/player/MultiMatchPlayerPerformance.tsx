@@ -186,17 +186,13 @@ const KillGrid = ({
           <div key={displayMatchId} className="flex flex-col">
             {/* Match row */}
             <div className="flex items-center gap-1">
-              {/* Clickable match label */}
-              <button
-                onClick={() => handleMatchClick(displayMatchId)}
-                className="flex items-center gap-0.5 text-[10px] text-slate-400 hover:text-blue-400 w-8 font-mono flex-shrink-0 transition-colors cursor-pointer group"
-                title={`Click to ${isExpanded ? 'collapse' : 'expand'} ${matchName}`}
+              {/* Match ID Display (No longer expandable) */}
+              <div
+                className="flex items-center gap-0.5 text-[10px] text-slate-400 w-8 font-mono flex-shrink-0"
+                title={matchName}
               >
-                <ChevronDown
-                  className={`w-3 h-3 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
-                />
-                <span className="group-hover:underline">M{displayMatchId}</span>
-              </button>
+                <span>M{displayMatchId}</span>
+              </div>
               <div className="flex items-center flex-1 justify-between">
                 {/* Render each round as a column with responsive width */}
                 {Array.from({ length: maxRounds }).map((_, rIdx) => {
@@ -206,31 +202,31 @@ const KillGrid = ({
                   // Visual logic for the dots - responsive sizing
                   let bgClass = "bg-slate-700";
                   let dotSize = dotSizes.empty;
-                    let opacity = "opacity-30";
-                    
-                    // Determine visibility based on highlight mode
-                    let isDimmed = false;
-                    if (highlightMode === 'best') {
-                      isDimmed = kills < maxKillsOverall || kills === 0;
-                    } else if (highlightMode === 'multikill') {
-                      isDimmed = kills < 3;
-                    } else {
-                       // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
-                       isDimmed = kills === 0;
-                    }
+                  let opacity = "opacity-30";
 
-                    if (kills > 0) {
-                      // default high opacity for active cells
-                      opacity = isDimmed ? "opacity-10" : "opacity-100";
-                      bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
+                  // Determine visibility based on highlight mode
+                  let isDimmed = false;
+                  if (highlightMode === 'best') {
+                    isDimmed = kills < maxKillsOverall || kills === 0;
+                  } else if (highlightMode === 'multikill') {
+                    isDimmed = kills < 3;
+                  } else {
+                    // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
+                    isDimmed = kills === 0;
+                  }
 
-                      if (kills === 1) dotSize = dotSizes.one;
-                      if (kills === 2) dotSize = dotSizes.two;
-                      if (kills >= 3) dotSize = dotSizes.three;
-                    } else {
-                       // Empty cells (0 kills)
-                       opacity = isDimmed ? "opacity-10" : "opacity-30";
-                    }
+                  if (kills > 0) {
+                    // default high opacity for active cells
+                    opacity = isDimmed ? "opacity-10" : "opacity-100";
+                    bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
+
+                    if (kills === 1) dotSize = dotSizes.one;
+                    if (kills === 2) dotSize = dotSizes.two;
+                    if (kills >= 3) dotSize = dotSizes.three;
+                  } else {
+                    // Empty cells (0 kills)
+                    opacity = isDimmed ? "opacity-10" : "opacity-30";
+                  }
 
                   const isMultiKill = kills >= 3;
 
@@ -264,39 +260,7 @@ const KillGrid = ({
               </div>
             </div>
 
-            {/* Expandable EconomyPerformanceView section */}
-            <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[900px] opacity-100 mt-2' : 'max-h-0 opacity-0'
-                }`}
-            >
-              {isExpanded && (
-                <div className="bg-slate-900/80 rounded-lg border border-slate-600 p-4 ml-8">
-                  <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-700">
-                    <h4 className="text-sm font-semibold text-slate-200">
-                      {matchName} - Detailed View
-                    </h4>
-                    <button
-                      onClick={() => setExpandedMatchId(null)}
-                      className="text-xs text-slate-400 hover:text-slate-200 transition-colors"
-                    >
-                      ✕ Close
-                    </button>
-                  </div>
-                  {matchViewData ? (
-                    <EconomyPerformanceView
-                      matchData={matchViewData.matchData}
-                      teamMapping={matchViewData.teamMapping}
-                      teamNames={matchViewData.teamNames}
-                    />
-                  ) : (
-                    <div className="text-center py-8 text-slate-400">
-                      <p>Unable to load match details.</p>
-                      <p className="text-xs mt-1 text-slate-500">Match data may be incomplete or missing team information.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+
           </div>
         );
       })}
@@ -702,21 +666,22 @@ const ComparisonChart = ({
   }, [data]);
 
   return (
-    <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-6 h-full">
-      <div className="flex items-center gap-2 mb-6">
-        <TrendingUp className="text-emerald-400 w-5 h-5" />
-        <div className="flex items-center gap-2">
-          <h3 className="text-lg font-bold text-white">
-            Average Kills Per Match (AKM) Ranking
-          </h3>
-          <StatTooltip content="Ranking players by their average kills per game. The top players contribute the most eliminations." />
-        </div>
-      </div>
+    // <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-6 h-full">
+    //   <div className="flex items-center gap-2 mb-6">
+    //     <TrendingUp className="text-emerald-400 w-5 h-5" />
+    //     <div className="flex items-center gap-2">
+    //       <h3 className="text-lg font-bold text-white">
+    //         Average Kills Per Match (AKM) Ranking
+    //       </h3>
+    //       <StatTooltip content="Ranking players by their average kills per game. The top players contribute the most eliminations." />
+    //     </div>
+    //   </div>
 
-      <div ref={containerRef} className="w-full">
-        <svg ref={svgRef} className="w-full"></svg>
-      </div>
-    </div>
+    //   <div ref={containerRef} className="w-full">
+    //     <svg ref={svgRef} className="w-full"></svg>
+    //   </div>
+    // </div>
+    <></>
   );
 };
 

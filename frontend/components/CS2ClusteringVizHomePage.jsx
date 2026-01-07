@@ -96,6 +96,8 @@ const CS2ClusteringVizHomePage = () => {
   const [demoNamesMap, setDemoNamesMap] = useState({});
   const [showQuickGuide, setShowQuickGuide] = useState(false);
   const [activeView, setActiveView] = useState("clustering");
+  const [selectedEconomyDemoId, setSelectedEconomyDemoId] = useState(null);
+  const [selectedPerformanceDemoId, setSelectedPerformanceDemoId] = useState(null);
 
   const initialTeamMapping = useMemo(() => {
     const teams = { CT: null, T: null };
@@ -334,7 +336,8 @@ const CS2ClusteringVizHomePage = () => {
             throw new Error(`Failed to fetch demo ${id}`);
           }
           const result = await response.json();
-          return result.data;
+          // Inject the matchId into the data object so we can use it for matching/selection
+          return { ...result.data, matchId: id };
         });
 
         const results = await Promise.all(promises);
@@ -1453,6 +1456,18 @@ const CS2ClusteringVizHomePage = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
               )}
             </button>
+            <button
+              onClick={() => setActiveView("economy")}
+              className={`px-1 py-3 text-sm font-medium transition-all relative ${activeView === "economy"
+                ? "text-blue-400"
+                : "text-gray-400 hover:text-gray-300"
+                }`}
+            >
+              Economy Distribution
+              {activeView === "economy" && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
+              )}
+            </button>
           </div>
 
           {/* Always render Player Performance component (hidden when not active) to process data in background */}
@@ -1461,14 +1476,120 @@ const CS2ClusteringVizHomePage = () => {
               display: activeView === "player-performance" ? "block" : "none",
             }}
           >
-            <div className="max-h-[800px] overflow-auto custom-scrollbar bg-gray-800/30 rounded-lg border border-gray-700">
-              <MultiMatchPlayerPerformance
-                selectedDemoIds={clusteringDemoIds}
-                matchDataList={matchDataList}
-                isLoading={loadingClusteringDemos}
-              />
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 flex flex-col h-[900px]">
+              <div className="flex items-center justify-between mb-4 flex-shrink-0">
+                <h3 className="text-xl font-bold text-white">Player Performance</h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">Match:</span>
+                  <select
+                    value={selectedPerformanceDemoId || "all"}
+                    onChange={(e) => {
+                      const val = e.target.value === "all" ? null : e.target.value;
+                      setSelectedPerformanceDemoId(val);
+                    }}
+                    className="bg-gray-700 text-white text-sm rounded px-3 py-1.5 border border-gray-600 focus:outline-none focus:border-blue-500 max-w-[300px] truncate"
+                  >
+                    <option value="all">All Selected Matches</option>
+                    {matchDataList.map((m, idx) => {
+                      let displayName = demoNamesMap[idx] || `Match ${m.matchId}`;
+                      if (typeof displayName === 'string') {
+                        displayName = displayName.replace('.dem', '');
+                      }
+                      return (
+                        <option key={`p-${m.matchId}-${idx}`} value={m.matchId}>
+                          {displayName}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto custom-scrollbar bg-gray-900/30 rounded-lg border border-gray-700">
+                <MultiMatchPlayerPerformance
+                  selectedDemoIds={clusteringDemoIds}
+                  matchDataList={selectedPerformanceDemoId
+                    ? matchDataList.filter(m => m.matchId == selectedPerformanceDemoId)
+                    : matchDataList
+                  }
+                  isLoading={loadingClusteringDemos}
+                />
+              </div>
             </div>
           </div>
+
+
+          {activeView === "economy" && (
+            <div className="bg-gray-800 rounded-lg border border-gray-700 p-4 h-[900px] flex flex-col">
+              <div className="flex flex-col gap-4 mb-4 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-xl font-bold text-white">
+                      Team Economy & Distribution
+                    </h3>
+                    <InfoTooltip
+                      content="Analyze team economy, equipment value, and buy decisions across rounds."
+                      side="right"
+                    />
+                  </div>
+
+                  {/* Match Selector for Economy View */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-gray-400">Match:</span>
+                    <select
+                      value={selectedEconomyDemoId || ""}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setSelectedEconomyDemoId(val);
+                      }}
+                      className="bg-gray-700 text-white text-sm rounded px-3 py-1.5 border border-gray-600 focus:outline-none focus:border-blue-500 max-w-[300px] truncate"
+                    >
+                      {matchDataList.map((m, idx) => {
+                        let displayName = demoNamesMap[idx] || `Match ${m.matchId}`;
+                        // Clean up filename (remove .dem extension)
+                        if (typeof displayName === 'string') {
+                          displayName = displayName.replace('.dem', '');
+                        }
+
+                        return (
+                          <option key={`${m.matchId}-${idx}`} value={m.matchId}>
+                            {displayName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-auto custom-scrollbar">
+                {(() => {
+                  // Logic to get current match data
+                  const targetMatch = selectedEconomyDemoId
+                    ? matchDataList.find(m => m.matchId == selectedEconomyDemoId)
+                    : matchDataList[0]; // Default to first match if all/none selected
+
+                  if (!targetMatch) return (
+                    <div className="flex items-center justify-center h-full text-gray-400">
+                      No match data available
+                    </div>
+                  );
+
+                  // Get team names
+                  const ctTeam = initialTeamMapping.CT || targetMatch.metadata?.teamA || "Team A";
+                  const tTeam = initialTeamMapping.T || targetMatch.metadata?.teamB || "Team B";
+
+                  return (
+                    <EconomyPerformanceView
+                      matchData={targetMatch}
+                      teamMapping={{ CT: ctTeam, T: tTeam }}
+                      teamNames={{ 1: ctTeam, 2: tTeam }}
+                    />
+                  );
+                })()}
+              </div>
+            </div>
+          )}
 
           {activeView === "clustering" ? (
             <>
@@ -1964,8 +2085,8 @@ const CS2ClusteringVizHomePage = () => {
             </>
           ) : null}
         </div>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

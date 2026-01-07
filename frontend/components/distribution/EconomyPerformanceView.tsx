@@ -12,6 +12,7 @@ interface EconomyPerformanceViewProps {
   matchData: any;
   teamMapping: { CT: string | null; T: string | null };
   teamNames: Record<number, string>;
+  showPlayerPerformanceTab?: boolean;
 }
 
 interface DynamicTeamMapping {
@@ -23,7 +24,9 @@ export function EconomyPerformanceView({
   matchData,
   teamMapping,
   teamNames,
+  showPlayerPerformanceTab = true,
 }: EconomyPerformanceViewProps) {
+  console.log("EconomyView Render:", { matchData, teamMapping, teamNames });
   // View state
   const [currentView, setCurrentView] = useState<"economy" | "performance">(
     "economy"
@@ -111,21 +114,19 @@ export function EconomyPerformanceView({
       <div className="flex gap-2 mb-4 flex-shrink-0">
         <button
           onClick={() => setCurrentView("economy")}
-          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${
-            currentView === "economy"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-          }`}
+          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${currentView === "economy"
+            ? "bg-blue-600 text-white"
+            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
         >
           💰 Economy Distribution
         </button>
         <button
           onClick={() => setCurrentView("performance")}
-          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${
-            currentView === "performance"
-              ? "bg-blue-600 text-white"
-              : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-          }`}
+          className={`flex-1 px-4 py-2 font-medium rounded-lg transition-colors text-sm ${currentView === "performance"
+            ? "bg-blue-600 text-white"
+            : "bg-gray-700 text-gray-300 hover:bg-gray-600"
+            }`}
         >
           🎯 Player Performance
         </button>
@@ -159,19 +160,30 @@ export function EconomyPerformanceView({
         {/* Economy View */}
         {currentView === "economy" && (
           <div className="flex flex-col justify-between space-y-4 gap-4">
-            {/* Economy Cards */}
-            <div>
-              <Economy
-                economyData={economyData}
-                teamNames={teamNames}
-                teamMapping={dynamicTeamMapping}
-                staticTeamMapping={
-                  teamMapping.CT && teamMapping.T
-                    ? { CT: teamMapping.CT, T: teamMapping.T }
-                    : undefined
-                }
-              />
-            </div>
+            {(!economyData || Object.keys(economyData).length === 0) && (
+              <div className="p-8 text-center border border-dashed border-gray-600 rounded-lg">
+                <p className="text-xl text-yellow-400 font-bold mb-2">No Economy Data Generated</p>
+                <p className="text-gray-400">
+                  Match Data Present: {matchData ? "Yes" : "No"} <br />
+                  Team CT: {teamMapping.CT || "Missing"} <br />
+                  Team T: {teamMapping.T || "Missing"}
+                </p>
+              </div>
+            )}
+            {economyData && Object.keys(economyData).length > 0 && (
+              <div>
+                <Economy
+                  economyData={economyData}
+                  teamNames={teamNames}
+                  teamMapping={dynamicTeamMapping}
+                  staticTeamMapping={
+                    teamMapping.CT && teamMapping.T
+                      ? { CT: teamMapping.CT, T: teamMapping.T }
+                      : undefined
+                  }
+                />
+              </div>
+            )}
 
             {/* Line Chart */}
             <div className="bg-gray-900/50 rounded-lg p-3 border border-gray-700">
