@@ -240,9 +240,8 @@ const KillGrid = ({
 
             {/* Expandable EconomyPerformanceView section */}
             <div
-              className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                isExpanded ? 'max-h-[900px] opacity-100 mt-2' : 'max-h-0 opacity-0'
-              }`}
+              className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[900px] opacity-100 mt-2' : 'max-h-0 opacity-0'
+                }`}
             >
               {isExpanded && (
                 <div className="bg-slate-900/80 rounded-lg border border-slate-600 p-4 ml-8">
@@ -376,6 +375,37 @@ const PlayerCard = ({
 };
 
 /**
+ * Legend Component for Kill Grid Markers
+ */
+const MarkerLegend = () => {
+  return (
+    <div className="flex items-center gap-6 px-4 py-2 bg-slate-800/50 rounded-md border border-slate-700 text-xs text-slate-400 mb-4">
+      <span className="Font-semibold text-slate-300 mr-2">Marker Legend:</span>
+
+      <div className="flex items-center gap-2">
+        <div className="w-2 h-2 rounded-full bg-slate-600 opacity-50"></div>
+        <span>0 Kills</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]"></div>
+        <span>1 Kill</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="w-3 h-3 rounded-full bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.6)]"></div>
+        <span>2 Kills</span>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <div className="w-3.5 h-3.5 bg-blue-500 rotate-45 shadow-[0_0_6px_rgba(59,130,246,0.6)]"></div>
+        <span>3+ Kills (Diamond)</span>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Player List Component
  * Shows players from a single team in a vertical stack
  */
@@ -390,30 +420,73 @@ const PlayerList = ({
   matchDataList: any[];
   selectedDemoIds: string[];
 }) => {
+  const [sortBy, setSortBy] = useState<'akm' | 'name' | 'kills'>('akm');
+
   const teamColor = getTeamColor(teamName);
   const colorClass = teamColor === "#3b82f6" ? "text-blue-400" : "text-orange-400";
 
+  // Sort players based on selection
+  const sortedTeam = useMemo(() => {
+    return [...team].sort((a, b) => {
+      const statsA = aggregatePlayerStats(a);
+      const statsB = aggregatePlayerStats(b);
+
+      switch (sortBy) {
+        case 'name':
+          return a.name.localeCompare(b.name);
+        case 'kills':
+          // Calculate total kills manually or assume it's roughly proportional to AKM * matches
+          // Since we don't have explicit "total kills" in top-level PlayerStats, 
+          // we can sum it up from matches array for accuracy.
+          const killsA = a.matches.reduce((sum, m) => sum + m.kills, 0);
+          const killsB = b.matches.reduce((sum, m) => sum + m.kills, 0);
+          return killsB - killsA;
+        case 'akm':
+        default:
+          return parseFloat(statsB.akm) - parseFloat(statsA.akm);
+      }
+    });
+  }, [team, sortBy]);
+
   return (
     <div className="space-y-4">
-      {/* Team Header */}
-      <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-800">
-        <div className="flex items-center gap-3">
-          <div
-            className="w-1 h-8 rounded-full"
-            style={{ backgroundColor: teamColor }}
-          />
-          <h3 className={`text-xl font-bold ${colorClass}`}>
-            {teamName}
-          </h3>
+      {/* Team Header & Controls */}
+      <div className="flex flex-col gap-4 mb-6 pb-3 border-b border-slate-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="w-1 h-8 rounded-full"
+              style={{ backgroundColor: teamColor }}
+            />
+            <h3 className={`text-xl font-bold ${colorClass}`}>
+              {teamName}
+            </h3>
+            <div className="text-sm text-slate-400 ml-2">
+              {team.length} Players
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-slate-400">Sort by:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+            >
+              <option value="akm">AKM (Avg Kills)</option>
+              <option value="kills">Total Kills</option>
+              <option value="name">Name (A-Z)</option>
+            </select>
+          </div>
         </div>
-        <div className="text-sm text-slate-400">
-          {team.length} Players
-        </div>
+
+        {/* Legend */}
+        <MarkerLegend />
       </div>
 
       {/* Player Cards - Stacked Vertically */}
       <div className="space-y-4">
-        {team.map((player) => (
+        {sortedTeam.map((player) => (
           <PlayerCard
             key={player.id}
             player={player}
