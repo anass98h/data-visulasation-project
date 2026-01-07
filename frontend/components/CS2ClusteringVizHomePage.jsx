@@ -364,6 +364,42 @@ const CS2ClusteringVizHomePage = () => {
           setMatchData(result.data);
           setCurrentRoundContext(result.data.rounds?.[0]?.roundNum || 1);
         }
+
+        // Load heatmaps from backend
+        // 1. Per-Round Heatmaps (Prop: heatmapData)
+        try {
+          const roundHeatmapRes = await fetch(
+            `${API_URL}/demo/${selectedDemoId}/heatmap/rounds`
+          );
+          if (roundHeatmapRes.ok) {
+            const data = await roundHeatmapRes.json();
+            // This goes to heatmapData prop in CS2MapRenderer (which uses it for per-round)
+            setHeatmapData(data);
+          }
+        } catch (e) {
+          console.error("Error loading round heatmaps:", e);
+        }
+
+        // 2. Overall/Team-Side Heatmaps (Prop: teamSideHeatmapData)
+        try {
+          const heatmapRes = await fetch(
+            `${API_URL}/demo/${selectedDemoId}/heatmap`
+          );
+          if (heatmapRes.ok) {
+            const data = await heatmapRes.json();
+            // Backend now returns full keys (e.g. "TeamA_as_CT")
+            // We just need to separate gridSize/bounds from the teams
+            const { gridSize, bounds, ...teamsData } = data.heatmapData;
+
+            setTeamSideHeatmapData({
+              teamSideHeatmaps: teamsData,
+              gridSize,
+              bounds,
+            });
+          }
+        } catch (e) {
+          console.error("Error loading overall heatmap:", e);
+        }
       } catch (error) {
         console.error("Error loading demo:", error);
       } finally {

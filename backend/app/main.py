@@ -226,6 +226,42 @@ async def delete_demo(demo_id: str):
         )
 
 
+@app.get("/demo/{demo_id}/heatmap")
+async def get_demo_heatmap(demo_id: str, grid_size: int = 50):
+    """
+    Get combined heatmap for the entire match
+    
+    - **demo_id**: Unique identifier for the demo
+    - **grid_size**: Grid resolution (default: 50)
+    """
+    try:
+        from app.heatmap_generator import HeatmapGenerator
+        generator = HeatmapGenerator(demo_id)
+        return generator.generate_overall_heatmap(grid_size=grid_size)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating heatmap: {str(e)}")
+
+
+@app.get("/demo/{demo_id}/heatmap/rounds")
+async def get_demo_round_heatmaps(demo_id: str, grid_size: int = 50):
+    """
+    Get per-round heatmaps
+    
+    - **demo_id**: Unique identifier for the demo
+    - **grid_size**: Grid resolution (default: 50)
+    """
+    try:
+        from app.heatmap_generator import HeatmapGenerator
+        generator = HeatmapGenerator(demo_id)
+        return generator.generate_round_heatmaps(grid_size=grid_size)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating round heatmaps: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
     from app.config import HOST, PORT
