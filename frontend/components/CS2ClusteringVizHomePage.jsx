@@ -1359,6 +1359,19 @@ const CS2ClusteringVizHomePage = () => {
                 content="Visualize player positions and movement patterns across all rounds. Click 'Show Heatmap' to display hot zones on the map."
                 side="right"
               />
+
+              {/* Global Team Color Legend */}
+              <div className="ml-auto flex items-center gap-3 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700/50">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  <span className="text-xs text-blue-200 font-bold tracking-wide">CT</span>
+                </div>
+                <div className="w-px h-3 bg-slate-700"></div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                  <span className="text-xs text-red-200 font-bold tracking-wide">T</span>
+                </div>
+              </div>
             </div>
             <div className="overflow-hidden rounded-lg">
               <CS2MapRenderer
@@ -1402,6 +1415,19 @@ const CS2ClusteringVizHomePage = () => {
                 Clustering Analysis
               </h2>
               <InfoTooltip content="Analyze tactical patterns by grouping similar round strategies. Select demos, choose a team and side, then run the analysis to see strategy clusters visualized on a 2D plot." />
+
+              {/* Global Team Color Legend */}
+              <div className="ml-4 flex items-center gap-3 bg-slate-900/50 px-3 py-1 rounded-full border border-slate-700/50">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                  <span className="text-xs text-blue-200 font-bold tracking-wide">CT</span>
+                </div>
+                <div className="w-px h-3 bg-slate-700"></div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)]"></div>
+                  <span className="text-xs text-red-200 font-bold tracking-wide">T</span>
+                </div>
+              </div>
             </div>
             <button
               onClick={() => setShowQuickGuide(!showQuickGuide)}
@@ -1468,6 +1494,7 @@ const CS2ClusteringVizHomePage = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
               )}
             </button> */}
+
           </div>
 
           {/* Always render Player Performance component (hidden when not active) to process data in background */}

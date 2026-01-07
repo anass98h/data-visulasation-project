@@ -37,7 +37,7 @@ const LineChart: React.FC<LineChartProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  
+
   // Initialize width immediately if possible, preventing initial 0 state
   const [containerWidth, setContainerWidth] = useState<number>(0);
 
@@ -56,10 +56,10 @@ const LineChart: React.FC<LineChartProps> = ({
     const resizeObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         if (entry.contentBoxSize) {
-           const width = entry.contentRect.width;
-           if (width > 0) {
-             setContainerWidth(width);
-           }
+          const width = entry.contentRect.width;
+          if (width > 0) {
+            setContainerWidth(width);
+          }
         }
       }
     });
@@ -117,10 +117,10 @@ const LineChart: React.FC<LineChartProps> = ({
 
     // Dimensions
     const containerHeight = 400;
-    
+
     // Use state width, or ref width, or fallback
-    const currentWidth = containerWidth > 0 
-      ? containerWidth 
+    const currentWidth = containerWidth > 0
+      ? containerWidth
       : (containerRef.current.clientWidth || 600);
 
     // Set up margins and dimensions
@@ -395,9 +395,8 @@ const LineChart: React.FC<LineChartProps> = ({
           d3.select(this).transition().duration(200).attr("r", 6);
 
           tooltip.style("visibility", "visible").html(`
-                    <div style="font-weight: 600; margin-bottom: 4px;">${
-                      series.label
-                    } - ${xLabel} ${series.x[i]}</div>
+                    <div style="font-weight: 600; margin-bottom: 4px;">${series.label
+            } - ${xLabel} ${series.x[i]}</div>
                     <div style="color: #9ca3af;">${yLabel}: ${d.toLocaleString()}</div>
                 `);
         })
@@ -478,11 +477,10 @@ const LineChart: React.FC<LineChartProps> = ({
             <button
               key={series.teamId}
               onClick={() => toggleTeam(series.teamId || 0)}
-              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-300 ${
-                isActive
+              className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-all duration-300 ${isActive
                   ? 'bg-gray-600 hover:bg-gray-500'
                   : 'bg-gray-800 hover:bg-gray-700 opacity-50'
-              }`}
+                }`}
             >
               {/* Line Preview */}
               <svg width="30" height="12" className="flex-shrink-0">

@@ -243,14 +243,14 @@ export function transformDemoDataToPlayerStats(
 
     // Get match name from demo data - check multiple possible locations
     const matchName = demoData.metadata?.demo_name ||
-                      demoData.demo_name ||
-                      demoData.demoName ||
-                      demoData.name ||
-                      demoData.metadata?.name ||
-                      demoData.metadata?.mapName ||
-                      demoData.mapName ||
-                      selectedDemoIds[matchIndex] ||
-                      `Match ${matchId}`;
+      demoData.demo_name ||
+      demoData.demoName ||
+      demoData.name ||
+      demoData.metadata?.name ||
+      demoData.metadata?.mapName ||
+      demoData.mapName ||
+      selectedDemoIds[matchIndex] ||
+      `Match ${matchId}`;
 
     // Debug logging to help identify where demo_name is located
     if (matchIndex === 0) {
@@ -360,7 +360,7 @@ export function getTeamColor(team: string): string {
     teamLower.includes("teamb") ||
     teamLower.includes("t")
   ) {
-    return "#fb923c"; // Orange
+    return "#ef4444"; // Red
   }
 
   // Default fallback: use first team as blue, others as orange

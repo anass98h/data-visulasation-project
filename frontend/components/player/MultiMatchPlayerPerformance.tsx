@@ -123,7 +123,7 @@ const KillGrid = ({
 
   const getTeamMainColor = (team: string): string => {
     const color = getTeamColor(team);
-    return color === "#3b82f6" ? "bg-blue-500" : "bg-orange-500";
+    return color === "#3b82f6" ? "bg-blue-500" : "bg-red-500";
   };
 
   // Calculate dot sizes based on cell width
@@ -164,7 +164,7 @@ const KillGrid = ({
                   let bgClass = "bg-slate-700";
                   let dotSize = dotSizes.empty;
                   let opacity = "opacity-30";
-                  
+
                   // Determine visibility based on highlight mode
                   let isDimmed = false;
                   if (highlightMode === 'best') {
@@ -172,8 +172,8 @@ const KillGrid = ({
                   } else if (highlightMode === 'multikill') {
                     isDimmed = kills < 3;
                   } else {
-                     // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
-                     isDimmed = kills === 0;
+                    // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
+                    isDimmed = kills === 0;
                   }
 
                   if (kills > 0) {
@@ -185,8 +185,8 @@ const KillGrid = ({
                     if (kills === 2) dotSize = dotSizes.two;
                     if (kills >= 3) dotSize = dotSizes.three;
                   } else {
-                     // Empty cells (0 kills)
-                     opacity = isDimmed ? "opacity-10" : "opacity-30";
+                    // Empty cells (0 kills)
+                    opacity = isDimmed ? "opacity-10" : "opacity-30";
                   }
 
                   const isMultiKill = kills >= 3;
@@ -648,13 +648,13 @@ export default function MultiMatchPlayerPerformance({
       // Fallback: try to find any team names if strict CT/T logic fails, or use placeholders
       // This is important if the match data structure is slightly different
       if (matchData.team1 && matchData.team2) {
-          ctTeam = matchData.team1;
-          tTeam = matchData.team2;
+        ctTeam = matchData.team1;
+        tTeam = matchData.team2;
       } else {
-         // If we really can't find team names, default them so the view doesn't break
-         console.warn(`Could not find team names for M${activeMatchId}, using defaults`);
-         ctTeam = "Team A";
-         tTeam = "Team B";
+        // If we really can't find team names, default them so the view doesn't break
+        console.warn(`Could not find team names for M${activeMatchId}, using defaults`);
+        ctTeam = "Team A";
+        tTeam = "Team B";
       }
     }
 
@@ -746,6 +746,8 @@ export default function MultiMatchPlayerPerformance({
             {matchDataList.length !== 1 ? "es" : ""}
           </p>
         </div>
+
+
         <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900/50 px-3 py-1 rounded border border-slate-800">
           <Info className="w-3 h-3" />
           <span>Click on M1, M2... to view match details on the right</span>
@@ -777,7 +779,7 @@ export default function MultiMatchPlayerPerformance({
                   {activeMatchId && <span className="ml-2 text-slate-400 font-mono text-base">M{activeMatchId}</span>}
                 </h3>
               </div>
-              
+
               {/* Optional: Add a dropdown or indicator for the current match if header isn't enough */}
             </div>
 
@@ -785,7 +787,7 @@ export default function MultiMatchPlayerPerformance({
               <div className="animate-in fade-in duration-300">
                 <div className="bg-slate-900/50 rounded-lg p-2 mb-4 border border-slate-700/50">
                   <p className="text-xs text-center text-slate-400 font-mono">
-                     Viewing Match {activeMatchId}: {activeMatchViewData.teamNames[1]} vs {activeMatchViewData.teamNames[2]}
+                    Viewing Match {activeMatchId}: {activeMatchViewData.teamNames[1]} vs {activeMatchViewData.teamNames[2]}
                   </p>
                 </div>
                 <EconomyPerformanceView
@@ -809,6 +811,6 @@ export default function MultiMatchPlayerPerformance({
           </div>
         </div>
       </div>
-    </div>
+    </div >
   );
 }
