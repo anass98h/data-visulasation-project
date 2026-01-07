@@ -55,16 +55,19 @@ const KillGrid = ({
   matchDataList,
   selectedDemoIds,
   highlightMode,
+  activeMatchId,
+  onMatchSelect,
 }: {
   player: PlayerStats;
   matchCount: number;
   matchDataList: any[];
   selectedDemoIds: string[];
   highlightMode: 'all' | 'best' | 'multikill';
+  activeMatchId: number | null;
+  onMatchSelect: (matchId: number) => void;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cellWidth, setCellWidth] = useState(20);
-  const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null);
 
   // Calculate max kills across all matches for "best" highlight mode
   const maxKillsOverall = useMemo(() => {
@@ -123,48 +126,6 @@ const KillGrid = ({
     return color === "#3b82f6" ? "bg-blue-500" : "bg-orange-500";
   };
 
-  // Get match data and team mapping for EconomyPerformanceView
-  const getMatchDataForView = (matchId: number) => {
-    const matchIndex = matchId - 1; // matchId is 1-indexed
-    if (matchIndex < 0 || matchIndex >= matchDataList.length) return null;
-
-    const matchData = matchDataList[matchIndex];
-    if (!matchData) return null;
-
-    // Extract team names from ticks data (same logic as CS2ClusteringVizHomePage)
-    let ctTeam: string | null = null;
-    let tTeam: string | null = null;
-
-    if (matchData.ticks && Array.isArray(matchData.ticks)) {
-      for (const tick of matchData.ticks) {
-        if (tick.side === "CT" && !ctTeam) {
-          ctTeam = tick.team;
-        }
-        if (tick.side === "T" && !tTeam) {
-          tTeam = tick.team;
-        }
-        if (ctTeam && tTeam) break;
-      }
-    }
-
-    // If no team names found from ticks, return null to prevent loading state
-    if (!ctTeam || !tTeam) {
-      console.warn(`Could not extract team names for match ${matchId}`);
-      return null;
-    }
-
-    return {
-      matchData,
-      teamMapping: { CT: ctTeam, T: tTeam },
-      teamNames: { 1: ctTeam, 2: tTeam }
-    };
-  };
-
-  // Toggle expanded match
-  const handleMatchClick = (matchId: number) => {
-    setExpandedMatchId(expandedMatchId === matchId ? null : matchId);
-  };
-
   // Calculate dot sizes based on cell width
   const dotSizes = {
     empty: Math.max(Math.floor(cellWidth * 0.35), 6),
@@ -179,20 +140,20 @@ const KillGrid = ({
       {Array.from({ length: matchCount }).map((_, mIdx) => {
         const displayMatchId = mIdx + 1;
         const matchName = getMatchName(displayMatchId);
-        const isExpanded = expandedMatchId === displayMatchId;
-        const matchViewData = getMatchDataForView(displayMatchId);
+        const isActive = activeMatchId === displayMatchId;
 
         return (
           <div key={displayMatchId} className="flex flex-col">
             {/* Match row */}
-            <div className="flex items-center gap-1">
-              {/* Match ID Display (No longer expandable) */}
-              <div
-                className="flex items-center gap-0.5 text-[10px] text-slate-400 w-8 font-mono flex-shrink-0"
-                title={matchName}
+            <div className={`flex items-center gap-1 p-1 rounded transition-colors ${isActive ? 'bg-blue-500/10 border border-blue-500/30' : 'border border-transparent'}`}>
+              {/* Clickable match label */}
+              <button
+                onClick={() => onMatchSelect(displayMatchId)}
+                className={`flex items-center justify-center text-[10px] w-6 font-mono flex-shrink-0 transition-colors cursor-pointer group ${isActive ? 'text-blue-400 font-bold' : 'text-slate-400 hover:text-blue-400'}`}
+                title={`Click to view details for ${matchName}`}
               >
-                <span>M{displayMatchId}</span>
-              </div>
+                <span className="group-hover:underline">M{displayMatchId}</span>
+              </button>
               <div className="flex items-center flex-1 justify-between">
                 {/* Render each round as a column with responsive width */}
                 {Array.from({ length: maxRounds }).map((_, rIdx) => {
@@ -203,7 +164,7 @@ const KillGrid = ({
                   let bgClass = "bg-slate-700";
                   let dotSize = dotSizes.empty;
                   let opacity = "opacity-30";
-
+                  
                   // Determine visibility based on highlight mode
                   let isDimmed = false;
                   if (highlightMode === 'best') {
@@ -211,8 +172,8 @@ const KillGrid = ({
                   } else if (highlightMode === 'multikill') {
                     isDimmed = kills < 3;
                   } else {
-                    // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
-                    isDimmed = kills === 0;
+                     // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
+                     isDimmed = kills === 0;
                   }
 
                   if (kills > 0) {
@@ -224,8 +185,8 @@ const KillGrid = ({
                     if (kills === 2) dotSize = dotSizes.two;
                     if (kills >= 3) dotSize = dotSizes.three;
                   } else {
-                    // Empty cells (0 kills)
-                    opacity = isDimmed ? "opacity-10" : "opacity-30";
+                     // Empty cells (0 kills)
+                     opacity = isDimmed ? "opacity-10" : "opacity-30";
                   }
 
                   const isMultiKill = kills >= 3;
@@ -259,14 +220,12 @@ const KillGrid = ({
                 })}
               </div>
             </div>
-
-
           </div>
         );
       })}
 
       {/* Round Axis Labels - Aligned with dots - All round numbers */}
-      <div className="flex items-center gap-1 mt-1">
+      <div className="flex items-center gap-1 mt-1 pl-1">
         <span className="w-8 flex-shrink-0"></span>
         <div className="flex items-center flex-1 justify-between">
           {Array.from({ length: maxRounds }).map((_, idx) => {
@@ -301,12 +260,16 @@ const PlayerCard = ({
   matchDataList,
   selectedDemoIds,
   highlightMode,
+  activeMatchId,
+  onMatchSelect,
 }: {
   player: PlayerStats;
   stats: PlayerAggregatedStats;
   matchDataList: any[];
   selectedDemoIds: string[];
   highlightMode: 'all' | 'best' | 'multikill';
+  activeMatchId: number | null;
+  onMatchSelect: (matchId: number) => void;
 }) => {
   const teamColorHex = getTeamColor(player.team);
   const teamColor =
@@ -343,6 +306,8 @@ const PlayerCard = ({
         matchDataList={matchDataList}
         selectedDemoIds={selectedDemoIds}
         highlightMode={highlightMode}
+        activeMatchId={activeMatchId}
+        onMatchSelect={onMatchSelect}
       />
 
       {/* Footer Stats: Consistency Only */}
@@ -407,11 +372,15 @@ const PlayerList = ({
   teamName,
   matchDataList,
   selectedDemoIds,
+  activeMatchId,
+  onMatchSelect,
 }: {
   team: PlayerStats[];
   teamName: string;
   matchDataList: any[];
   selectedDemoIds: string[];
+  activeMatchId: number | null;
+  onMatchSelect: (matchId: number) => void;
 }) => {
   const [sortBy, setSortBy] = useState<'akm' | 'name' | 'kills'>('akm');
   const [highlightMode, setHighlightMode] = useState<'all' | 'best' | 'multikill'>('all');
@@ -505,6 +474,8 @@ const PlayerList = ({
             matchDataList={matchDataList}
             selectedDemoIds={selectedDemoIds}
             highlightMode={highlightMode}
+            activeMatchId={activeMatchId}
+            onMatchSelect={onMatchSelect}
           />
         ))}
       </div>
@@ -512,178 +483,11 @@ const PlayerList = ({
   );
 };
 
-/**
- * Comparison Chart Component
- * Horizontal bar chart ranking all players by AKM using D3.js
- */
-const ComparisonChart = ({
-  data,
-}: {
-  data: { name: string; akm: number; team: string }[];
-}) => {
-  const svgRef = useRef<SVGSVGElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!svgRef.current || !containerRef.current || data.length === 0) {
-      console.log("🔴 Chart render skipped:", {
-        svgRef: !!svgRef.current,
-        containerRef: !!containerRef.current,
-        dataLength: data.length,
-      });
-      return;
-    }
 
-    console.log("🟢 Rendering chart with data:", data);
-
-    // Clear previous chart
-    d3.select(svgRef.current).selectAll("*").remove();
-
-    // Dimensions - dynamic height based on number of players
-    const containerWidth = containerRef.current.clientWidth;
-    console.log("📐 Container width:", containerWidth);
-
-    const margin = { top: 10, right: 60, bottom: 30, left: 100 };
-    const width = Math.max(containerWidth - margin.left - margin.right, 250);
-    const barHeight = 40;
-    const height = data.length * barHeight;
-    const svgHeight = height + margin.top + margin.bottom;
-
-    console.log("📊 Chart dimensions:", { width, height, svgHeight });
-
-    // Create SVG
-    const svg = d3
-      .select(svgRef.current)
-      .attr("width", containerWidth)
-      .attr("height", svgHeight)
-      .append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    // Scales
-    const maxAkm = d3.max(data, (d) => d.akm) || 30;
-    console.log("📈 Max AKM:", maxAkm);
-
-    const xScale = d3
-      .scaleLinear()
-      .domain([0, Math.ceil(maxAkm * 1.15)])
-      .range([0, width]);
-
-    const yScale = d3
-      .scaleBand()
-      .domain(data.map((d) => d.name))
-      .range([0, height])
-      .padding(0.3);
-
-    // Background rectangle for debugging
-    svg
-      .append("rect")
-      .attr("width", width)
-      .attr("height", height)
-      .attr("fill", "none")
-      .attr("stroke", "#475569")
-      .attr("stroke-width", 1)
-      .attr("opacity", 0.3);
-
-    // Grid lines (vertical)
-    svg
-      .append("g")
-      .attr("class", "grid")
-      .selectAll("line")
-      .data(xScale.ticks(5))
-      .join("line")
-      .attr("x1", (d) => xScale(d))
-      .attr("x2", (d) => xScale(d))
-      .attr("y1", 0)
-      .attr("y2", height)
-      .attr("stroke", "#334155")
-      .attr("stroke-dasharray", "3,3")
-      .attr("stroke-width", 1)
-      .attr("opacity", 0.5);
-
-    // Create bars group
-    const barsGroup = svg.append("g").attr("class", "bars");
-
-    // Bars with explicit stroke for visibility
-    const bars = barsGroup
-      .selectAll(".bar")
-      .data(data)
-      .join("rect")
-      .attr("class", "bar")
-      .attr("x", 0)
-      .attr("y", (d) => yScale(d.name) || 0)
-      .attr("width", (d) => {
-        const w = xScale(d.akm);
-        console.log(`Bar for ${d.name}: width=${w}, akm=${d.akm}`);
-        return w;
-      })
-      .attr("height", yScale.bandwidth())
-      .attr("fill", (d) => getTeamColor(d.team))
-      .attr("stroke", "#fff")
-      .attr("stroke-width", 1)
-      .attr("rx", 4)
-      .attr("opacity", 0.9)
-      .on("mouseover", function () {
-        d3.select(this).attr("opacity", 1).attr("stroke-width", 2);
-      })
-      .on("mouseout", function () {
-        d3.select(this).attr("opacity", 0.9).attr("stroke-width", 1);
-      });
-
-    // X Axis
-    const xAxis = svg
-      .append("g")
-      .attr("transform", `translate(0,${height})`)
-      .call(d3.axisBottom(xScale).ticks(5));
-
-    xAxis.selectAll("line").attr("stroke", "#94a3b8");
-    xAxis.selectAll("path").attr("stroke", "#94a3b8");
-    xAxis.selectAll("text").attr("fill", "#94a3b8").attr("font-size", "12px");
-
-    // Y Axis
-    const yAxis = svg.append("g").call(d3.axisLeft(yScale));
-
-    yAxis.selectAll("line").attr("stroke", "#475569");
-    yAxis.selectAll("path").attr("stroke", "#475569");
-    yAxis.selectAll("text").attr("fill", "#e2e8f0").attr("font-size", "12px");
-
-    // Add value labels on bars
-    svg
-      .append("g")
-      .attr("class", "labels")
-      .selectAll(".bar-label")
-      .data(data)
-      .join("text")
-      .attr("class", "bar-label")
-      .attr("x", (d) => xScale(d.akm) + 8)
-      .attr("y", (d) => (yScale(d.name) || 0) + yScale.bandwidth() / 2)
-      .attr("dy", "0.35em")
-      .attr("fill", "#f1f5f9")
-      .attr("font-size", "12px")
-      .attr("font-weight", "bold")
-      .text((d) => d.akm.toFixed(1));
-
-    console.log("✅ Chart rendered successfully");
-  }, [data]);
-
-  return (
-    // <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-6 h-full">
-    //   <div className="flex items-center gap-2 mb-6">
-    //     <TrendingUp className="text-emerald-400 w-5 h-5" />
-    //     <div className="flex items-center gap-2">
-    //       <h3 className="text-lg font-bold text-white">
-    //         Average Kills Per Match (AKM) Ranking
-    //       </h3>
-    //       <StatTooltip content="Ranking players by their average kills per game. The top players contribute the most eliminations." />
-    //     </div>
-    //   </div>
-
-    //   <div ref={containerRef} className="w-full">
-    //     <svg ref={svgRef} className="w-full"></svg>
-    //   </div>
-    // </div>
-    <></>
-  );
-};
+// ============================================================================
+// Main Component
+// ============================================================================
 
 // ============================================================================
 // Main Component
@@ -697,6 +501,14 @@ export default function MultiMatchPlayerPerformance({
   const [playerData, setPlayerData] = useState<PlayerStats[]>([]);
   const [processing, setProcessing] = useState(false);
   const [demoMetadata, setDemoMetadata] = useState<Record<string, any>>({});
+  const [activeMatchId, setActiveMatchId] = useState<number | null>(1); // Default to first match
+
+  // Reset active match when selection changes
+  useEffect(() => {
+    if (selectedDemoIds.length > 0) {
+      setActiveMatchId(1);
+    }
+  }, [selectedDemoIds]);
 
   // Fetch demo metadata to get demo names
   useEffect(() => {
@@ -806,15 +618,54 @@ export default function MultiMatchPlayerPerformance({
     };
   }, [playerData]);
 
-  // Comparison chart data (only for the target team)
-  const comparisonData = useMemo(() => {
-    return teamPlayers
-      .map((p) => {
-        const stats = aggregatePlayerStats(p);
-        return { name: p.name, akm: parseFloat(stats.akm), team: p.team };
-      })
-      .sort((a, b) => b.akm - a.akm);
-  }, [teamPlayers]);
+  // Get match data for the active view
+  const activeMatchViewData = useMemo(() => {
+    if (activeMatchId === null) return null;
+
+    const matchIndex = activeMatchId - 1; // matchId is 1-indexed
+    if (matchIndex < 0 || matchIndex >= matchDataList.length) return null;
+
+    const matchData = matchDataList[matchIndex];
+    if (!matchData) return null;
+
+    // Extract team names from ticks data
+    let ctTeam: string | null = null;
+    let tTeam: string | null = null;
+
+    if (matchData.ticks && Array.isArray(matchData.ticks)) {
+      for (const tick of matchData.ticks) {
+        if (tick.side === "CT" && !ctTeam) ctTeam = tick.team;
+        if (tick.side === "T" && !tTeam) tTeam = tick.team;
+        if (ctTeam && tTeam) break;
+      }
+    }
+
+    if (!ctTeam || !tTeam) {
+      console.warn(`Could not extract team names for match ${activeMatchId}`, {
+        ticks: matchData?.ticks?.length,
+        sides: matchData?.ticks?.slice(0, 5).map((t: any) => ({ side: t.side, team: t.team }))
+      });
+      // Fallback: try to find any team names if strict CT/T logic fails, or use placeholders
+      // This is important if the match data structure is slightly different
+      if (matchData.team1 && matchData.team2) {
+          ctTeam = matchData.team1;
+          tTeam = matchData.team2;
+      } else {
+         // If we really can't find team names, default them so the view doesn't break
+         console.warn(`Could not find team names for M${activeMatchId}, using defaults`);
+         ctTeam = "Team A";
+         tTeam = "Team B";
+      }
+    }
+
+    console.log(`✅ Extracted teams for M${activeMatchId}: CT=${ctTeam}, T=${tTeam}`);
+
+    return {
+      matchData,
+      teamMapping: { CT: ctTeam, T: tTeam },
+      teamNames: { 1: ctTeam || "Team A", 2: tTeam || "Team B" }
+    };
+  }, [activeMatchId, matchDataList]);
 
   // ============================================================================
   // Loading State
@@ -897,12 +748,12 @@ export default function MultiMatchPlayerPerformance({
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500 bg-slate-900/50 px-3 py-1 rounded border border-slate-800">
           <Info className="w-3 h-3" />
-          <span>Hover over grid dots for round details</span>
+          <span>Click on M1, M2... to view match details on the right</span>
         </div>
       </div>
 
-      {/* Two Column Layout: Players on left, Chart on right - Equal widths */}
-      <div className="w-full">
+      {/* Two Column Layout: Players on left, Details on right */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Left Column: Player Cards */}
         {teamPlayers.length > 0 && (
           <PlayerList
@@ -910,11 +761,53 @@ export default function MultiMatchPlayerPerformance({
             teamName={targetTeamName}
             matchDataList={matchDataList}
             selectedDemoIds={selectedDemoIds}
+            activeMatchId={activeMatchId}
+            onMatchSelect={setActiveMatchId}
           />
         )}
 
-        {/* Right Column: AKM Ranking Chart */}
-        {comparisonData.length > 0 && <ComparisonChart data={comparisonData} />}
+        {/* Right Column: Detailed Match View */}
+        <div className="h-full">
+          <div className="bg-slate-800/40 rounded-xl border border-slate-800 p-6 h-full sticky top-4 max-h-[calc(100vh-2rem)] overflow-y-auto custom-scrollbar">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="text-emerald-400 w-5 h-5" />
+                <h3 className="text-lg font-bold text-white">
+                  Match Analysis
+                  {activeMatchId && <span className="ml-2 text-slate-400 font-mono text-base">M{activeMatchId}</span>}
+                </h3>
+              </div>
+              
+              {/* Optional: Add a dropdown or indicator for the current match if header isn't enough */}
+            </div>
+
+            {activeMatchViewData ? (
+              <div className="animate-in fade-in duration-300">
+                <div className="bg-slate-900/50 rounded-lg p-2 mb-4 border border-slate-700/50">
+                  <p className="text-xs text-center text-slate-400 font-mono">
+                     Viewing Match {activeMatchId}: {activeMatchViewData.teamNames[1]} vs {activeMatchViewData.teamNames[2]}
+                  </p>
+                </div>
+                <EconomyPerformanceView
+                  key={activeMatchId}
+                  matchData={activeMatchViewData.matchData}
+                  teamMapping={activeMatchViewData.teamMapping}
+                  teamNames={activeMatchViewData.teamNames}
+                />
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-20 text-slate-500 opacity-60">
+                <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4">
+                  <Info className="w-8 h-8" />
+                </div>
+                <p className="text-lg font-medium">No Match Selected</p>
+                <p className="text-sm mt-2 text-center max-w-[250px]">
+                  Click "M1", "M2" buttons on player cards to view detailed economy and performance stats.
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -37,9 +37,39 @@ const LineChart: React.FC<LineChartProps> = ({
 }) => {
   const svgRef = useRef<SVGSVGElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Initialize width immediately if possible, preventing initial 0 state
+  const [containerWidth, setContainerWidth] = useState<number>(0);
 
   // Track which teams are active (both active by default)
   const [activeTeams, setActiveTeams] = useState<Set<number>>(new Set([1, 2]));
+
+  // Handle Resize and Initial Size
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Set initial width directly
+    if (containerRef.current.clientWidth > 0) {
+      setContainerWidth(containerRef.current.clientWidth);
+    }
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.contentBoxSize) {
+           const width = entry.contentRect.width;
+           if (width > 0) {
+             setContainerWidth(width);
+           }
+        }
+      }
+    });
+
+    resizeObserver.observe(containerRef.current);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, []);
 
   // D3-based team filtering function (memoized)
   const updateTeamVisibility = useCallback((activeTeamsSet: Set<number>) => {
@@ -85,19 +115,26 @@ const LineChart: React.FC<LineChartProps> = ({
     // Clear previous chart
     d3.select(svgRef.current).selectAll("*").remove();
 
-    // Get container dimensions
-    const containerWidth = containerRef.current.clientWidth;
+    // Dimensions
     const containerHeight = 400;
+    
+    // Use state width, or ref width, or fallback
+    const currentWidth = containerWidth > 0 
+      ? containerWidth 
+      : (containerRef.current.clientWidth || 600);
 
     // Set up margins and dimensions
     const margin = { top: 20, right: 100, bottom: 50, left: 80 };
-    const width = containerWidth - margin.left - margin.right;
+    const width = currentWidth - margin.left - margin.right;
     const height = containerHeight - margin.top - margin.bottom;
+
+    // Ensure width is positive to avoid D3 errors
+    if (width <= 0) return;
 
     // Create SVG
     const svg = d3
       .select(svgRef.current)
-      .attr("width", containerWidth)
+      .attr("width", currentWidth)
       .attr("height", containerHeight)
       .append("g")
       .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -395,7 +432,7 @@ const LineChart: React.FC<LineChartProps> = ({
 
     // Add axis styling
     svg.selectAll(".domain, .tick line").attr("stroke", "#4b5563"); // gray-600
-  }, [seriesData, xLabel, yLabel]);
+  }, [seriesData, xLabel, yLabel, containerWidth]);
 
   // Separate effect for updating visibility when activeTeams changes
   useEffect(() => {

@@ -1456,7 +1456,7 @@ const CS2ClusteringVizHomePage = () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
               )}
             </button>
-            <button
+            {/* <button
               onClick={() => setActiveView("economy")}
               className={`px-1 py-3 text-sm font-medium transition-all relative ${activeView === "economy"
                 ? "text-blue-400"
@@ -1467,7 +1467,7 @@ const CS2ClusteringVizHomePage = () => {
               {activeView === "economy" && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-blue-400"></div>
               )}
-            </button>
+            </button> */}
           </div>
 
           {/* Always render Player Performance component (hidden when not active) to process data in background */}
