@@ -23,7 +23,7 @@ const ClusteringMapPreview: React.FC<Props> = ({
   const [radar, setRadar] = useState<HTMLImageElement | null>(null);
 
   const config = useMemo(
-    () => MAP_CONFIG[mapName] ?? MAP_CONFIG.de_ancient,
+    () => MAP_CONFIG[mapName as keyof typeof MAP_CONFIG] ?? MAP_CONFIG.de_ancient,
     [mapName]
   );
 

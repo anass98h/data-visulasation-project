@@ -54,15 +54,26 @@ const KillGrid = ({
   matchCount,
   matchDataList,
   selectedDemoIds,
+  highlightMode,
 }: {
   player: PlayerStats;
   matchCount: number;
   matchDataList: any[];
   selectedDemoIds: string[];
+  highlightMode: 'all' | 'best' | 'multikill';
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [cellWidth, setCellWidth] = useState(20);
   const [expandedMatchId, setExpandedMatchId] = useState<number | null>(null);
+
+  // Calculate max kills across all matches for "best" highlight mode
+  const maxKillsOverall = useMemo(() => {
+    let max = 0;
+    player.matches.forEach(m => {
+      if (m.kills > max) max = m.kills;
+    });
+    return max;
+  }, [player.matches]);
 
   // Calculate the actual maximum rounds across all matches for responsiveness
   const maxRounds = useMemo(() => {
@@ -195,16 +206,31 @@ const KillGrid = ({
                   // Visual logic for the dots - responsive sizing
                   let bgClass = "bg-slate-700";
                   let dotSize = dotSizes.empty;
-                  let opacity = "opacity-30";
+                    let opacity = "opacity-30";
+                    
+                    // Determine visibility based on highlight mode
+                    let isDimmed = false;
+                    if (highlightMode === 'best') {
+                      isDimmed = kills < maxKillsOverall || kills === 0;
+                    } else if (highlightMode === 'multikill') {
+                      isDimmed = kills < 3;
+                    } else {
+                       // 'all' mode - only 0 kills is dimmed (handled by default opacity-30)
+                       isDimmed = kills === 0;
+                    }
 
-                  if (kills > 0) {
-                    opacity = "opacity-100";
-                    bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
+                    if (kills > 0) {
+                      // default high opacity for active cells
+                      opacity = isDimmed ? "opacity-10" : "opacity-100";
+                      bgClass = `${getTeamMainColor(player.team)} shadow-[0_0_6px_rgba(59,130,246,0.6)]`;
 
-                    if (kills === 1) dotSize = dotSizes.one;
-                    if (kills === 2) dotSize = dotSizes.two;
-                    if (kills >= 3) dotSize = dotSizes.three;
-                  }
+                      if (kills === 1) dotSize = dotSizes.one;
+                      if (kills === 2) dotSize = dotSizes.two;
+                      if (kills >= 3) dotSize = dotSizes.three;
+                    } else {
+                       // Empty cells (0 kills)
+                       opacity = isDimmed ? "opacity-10" : "opacity-30";
+                    }
 
                   const isMultiKill = kills >= 3;
 
@@ -310,11 +336,13 @@ const PlayerCard = ({
   stats,
   matchDataList,
   selectedDemoIds,
+  highlightMode,
 }: {
   player: PlayerStats;
   stats: PlayerAggregatedStats;
   matchDataList: any[];
   selectedDemoIds: string[];
+  highlightMode: 'all' | 'best' | 'multikill';
 }) => {
   const teamColorHex = getTeamColor(player.team);
   const teamColor =
@@ -350,6 +378,7 @@ const PlayerCard = ({
         matchCount={player.totalMatches}
         matchDataList={matchDataList}
         selectedDemoIds={selectedDemoIds}
+        highlightMode={highlightMode}
       />
 
       {/* Footer Stats: Consistency Only */}
@@ -421,6 +450,7 @@ const PlayerList = ({
   selectedDemoIds: string[];
 }) => {
   const [sortBy, setSortBy] = useState<'akm' | 'name' | 'kills'>('akm');
+  const [highlightMode, setHighlightMode] = useState<'all' | 'best' | 'multikill'>('all');
 
   const teamColor = getTeamColor(teamName);
   const colorClass = teamColor === "#3b82f6" ? "text-blue-400" : "text-orange-400";
@@ -466,17 +496,34 @@ const PlayerList = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-slate-400">Sort by:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            >
-              <option value="akm">AKM (Avg Kills)</option>
-              <option value="kills">Total Kills</option>
-              <option value="name">Name (A-Z)</option>
-            </select>
+          <div className="flex items-center gap-4">
+            {/* Round Highlight Filter */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">Highlight:</span>
+              <select
+                value={highlightMode}
+                onChange={(e) => setHighlightMode(e.target.value as any)}
+                className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="all">All Rounds</option>
+                <option value="best">Best Rounds</option>
+                <option value="multikill">Multi-Kills (3+)</option>
+              </select>
+            </div>
+
+            {/* Sort Control */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">Sort by:</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                className="bg-slate-800 border border-slate-700 text-slate-200 text-sm rounded px-3 py-1.5 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              >
+                <option value="akm">AKM (Avg Kills)</option>
+                <option value="kills">Total Kills</option>
+                <option value="name">Name (A-Z)</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -493,6 +540,7 @@ const PlayerList = ({
             stats={aggregatePlayerStats(player)}
             matchDataList={matchDataList}
             selectedDemoIds={selectedDemoIds}
+            highlightMode={highlightMode}
           />
         ))}
       </div>

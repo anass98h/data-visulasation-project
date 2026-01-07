@@ -258,7 +258,7 @@ const LineChart: React.FC<LineChartProps> = ({
             .y((d) => yScale(d))
             .curve(d3.curveLinear);
 
-          const sideColor = SIDE_COLORS[series.sides[0] as keyof typeof SIDE_COLORS] || series.color;
+          const sideColor = SIDE_COLORS[series.sides![0] as keyof typeof SIDE_COLORS] || series.color;
 
           svg
             .append("path")
@@ -275,7 +275,7 @@ const LineChart: React.FC<LineChartProps> = ({
           // Segment 1: Rounds 1-12 (indices 0 to halftimeIndex-1, inclusive of halftimeIndex for continuity)
           const segment1Data = series.y.slice(0, halftimeIndex);
           const segment1X = series.x.slice(0, halftimeIndex);
-          const segment1Side = series.sides[0]; // First half side
+          const segment1Side = series.sides![0]; // First half side
 
           const line1 = d3
             .line<number>()
@@ -296,7 +296,7 @@ const LineChart: React.FC<LineChartProps> = ({
           // Segment 2: Rounds 13+ (from halftimeIndex-1 onwards for continuity)
           const segment2Data = series.y.slice(halftimeIndex - 1);
           const segment2X = series.x.slice(halftimeIndex - 1);
-          const segment2Side = series.sides[halftimeIndex]; // Second half side
+          const segment2Side = series.sides![halftimeIndex]; // Second half side
 
           const line2 = d3
             .line<number>()
