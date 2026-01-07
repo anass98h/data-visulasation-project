@@ -51,4 +51,3 @@ utils/venv/
 
 backend/app/__pycache__
 frontend/public/match_data2.json
-slides.md
