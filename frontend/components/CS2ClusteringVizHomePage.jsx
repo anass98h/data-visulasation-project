@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import CS2MapRenderer from "./CS2MapRenderer";
 import { EconomyPerformanceView } from "@/components/distribution/EconomyPerformanceView";
-import { DemoSelectorHomePage } from "@/components/DemoSelectorHomePage";
+import { DemoSelector } from "@/components/DemoSelector";
 import { MultiDemoSelector } from "@/components/clustering/MultiDemoSelector";
 
 // Clustering imports
@@ -493,14 +493,14 @@ const CS2ClusteringVizHomePage = () => {
 
   const stats = matchData
     ? {
-        totalRounds: matchData.rounds?.length || 0,
-        mapName: matchData.header?.mapName || "Unknown",
-        tickRate: matchData.header?.tickRate || 64,
-        totalTicks: matchData.ticks?.length || 0,
-        totalKills: matchData.kills?.length || 0,
-        totalPlayers:
-          new Set(matchData.ticks?.map((t) => t.steamId || t.name)).size || 0,
-      }
+      totalRounds: matchData.rounds?.length || 0,
+      mapName: matchData.header?.mapName || "Unknown",
+      tickRate: matchData.header?.tickRate || 64,
+      totalTicks: matchData.ticks?.length || 0,
+      totalKills: matchData.kills?.length || 0,
+      totalPlayers:
+        new Set(matchData.ticks?.map((t) => t.steamId || t.name)).size || 0,
+    }
     : null;
 
   const maxRoundDuration = useMemo(() => {
@@ -1150,7 +1150,7 @@ const CS2ClusteringVizHomePage = () => {
         setSelectedCluster(res.cluster);
         setRepresentative(res.representative);
       }
-    } catch {}
+    } catch { }
   };
 
   if (isLoading || parsing) {
@@ -1193,7 +1193,7 @@ const CS2ClusteringVizHomePage = () => {
               <label className="block text-sm font-medium mb-2">
                 Or select existing demo:
               </label>
-              <DemoSelectorHomePage
+              <DemoSelector
                 onDemoSelect={setSelectedDemoId}
                 selectedDemoId={selectedDemoId}
               />
@@ -1236,22 +1236,16 @@ const CS2ClusteringVizHomePage = () => {
               </p>
             </div>
             <div className="relative">
-              <label className="px-6 py-3 bg-gray-700 rounded-lg cursor-not-allowed flex items-center gap-2 shrink-0 opacity-50">
+              <label className="px-6 py-3 bg-blue-600 rounded-lg cursor-pointer hover:bg-blue-700 flex items-center gap-2 shrink-0 transition-colors shadow-md">
                 <Upload size={20} />
-                Upload Demo
+                <span className="font-semibold">Upload Demo</span>
                 <input
                   type="file"
                   accept=".json,.dem"
-                  disabled
+                  onChange={handleFileUpload}
                   className="hidden"
                 />
               </label>
-              <div className="absolute -right-2 -top-2 pointer-events-auto z-10">
-                <InfoTooltip
-                  content="Demo upload is currently disabled for this user study. Uploading and parsing new demos requires significant processing time and has been restricted to maintain consistent evaluation conditions."
-                  side="left"
-                />
-              </div>
             </div>
           </div>
 
@@ -1262,7 +1256,7 @@ const CS2ClusteringVizHomePage = () => {
               <label className="block text-sm font-medium mb-2 text-gray-300">
                 Switch demo:
               </label>
-              <DemoSelectorHomePage
+              <DemoSelector
                 onDemoSelect={setSelectedDemoId}
                 selectedDemoId={selectedDemoId}
               />
@@ -1401,11 +1395,10 @@ const CS2ClusteringVizHomePage = () => {
           <div className="mb-6 flex gap-6 border-b border-gray-700">
             <button
               onClick={() => setActiveView("clustering")}
-              className={`px-1 py-3 text-sm font-medium transition-all relative ${
-                activeView === "clustering"
-                  ? "text-blue-400"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
+              className={`px-1 py-3 text-sm font-medium transition-all relative ${activeView === "clustering"
+                ? "text-blue-400"
+                : "text-gray-400 hover:text-gray-300"
+                }`}
             >
               Clustering Analysis
               {activeView === "clustering" && (
@@ -1414,11 +1407,10 @@ const CS2ClusteringVizHomePage = () => {
             </button>
             <button
               onClick={() => setActiveView("player-performance")}
-              className={`px-1 py-3 text-sm font-medium transition-all relative ${
-                activeView === "player-performance"
-                  ? "text-blue-400"
-                  : "text-gray-400 hover:text-gray-300"
-              }`}
+              className={`px-1 py-3 text-sm font-medium transition-all relative ${activeView === "player-performance"
+                ? "text-blue-400"
+                : "text-gray-400 hover:text-gray-300"
+                }`}
             >
               Player Performance
               {activeView === "player-performance" && (
@@ -1636,11 +1628,10 @@ const CS2ClusteringVizHomePage = () => {
                           </div>
                           <div className="flex items-center gap-2">
                             <div
-                              className={`w-2 h-2 rounded-full ${
-                                selectedSide === "CT"
-                                  ? "bg-blue-400"
-                                  : "bg-orange-400"
-                              }`}
+                              className={`w-2 h-2 rounded-full ${selectedSide === "CT"
+                                ? "bg-blue-400"
+                                : "bg-orange-400"
+                                }`}
                             ></div>
                             <span className="text-gray-300">
                               {selectedSide} Side
@@ -1748,9 +1739,9 @@ const CS2ClusteringVizHomePage = () => {
                     teamMapping={
                       matchDataList.length > 0
                         ? {
-                            CT: availableTeams[0] || null,
-                            T: availableTeams[1] || null,
-                          }
+                          CT: availableTeams[0] || null,
+                          T: availableTeams[1] || null,
+                        }
                         : initialTeamMapping
                     }
                     availableTeams={availableTeams}
@@ -1919,13 +1910,12 @@ const CS2ClusteringVizHomePage = () => {
                                     { team: previewTeam, timepoint: tp }
                                   );
                                   setRepresentative(reps.get(cid));
-                                } catch {}
+                                } catch { }
                               }}
-                              className={`px-2 py-1 rounded border ${
-                                tp === previewTimepoint
-                                  ? "bg-blue-600 border-blue-500 text-white"
-                                  : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
-                              }`}
+                              className={`px-2 py-1 rounded border ${tp === previewTimepoint
+                                ? "bg-blue-600 border-blue-500 text-white"
+                                : "bg-gray-700 border-gray-600 hover:bg-gray-600 text-gray-300"
+                                }`}
                             >
                               {tp}s
                             </button>

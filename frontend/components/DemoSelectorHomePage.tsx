@@ -14,7 +14,6 @@ import { Trash2, RefreshCw, Loader2, Lock } from "lucide-react";
 import { APP_CONFIG } from "@/config/app.config";
 
 const API_URL = APP_CONFIG.API.BASE_URL;
-const LOCKED_DEMO_ID = "afa93630-e144-4029-bf37-84c551b582fe";
 
 interface Demo {
   demo_id: string;
@@ -52,9 +51,9 @@ export function DemoSelectorHomePage({
       const data = await response.json();
       setDemos(data.demos);
 
-      // Auto-select the locked demo on initial load
-      if (data.demos.some((demo: Demo) => demo.demo_id === LOCKED_DEMO_ID)) {
-        onDemoSelect(LOCKED_DEMO_ID);
+      // Auto-select the first demo if none is selected
+      if (!selectedDemoId && data.demos.length > 0) {
+        onDemoSelect(data.demos[0].demo_id);
       }
     } catch (err) {
       console.error("Error fetching demos:", err);
@@ -91,7 +90,7 @@ export function DemoSelectorHomePage({
   };
 
   // Get the selected demo's name for display
-  const selectedDemo = demos.find((demo) => demo.demo_id === LOCKED_DEMO_ID);
+  const selectedDemo = demos.find((demo) => demo.demo_id === selectedDemoId);
 
   if (loading) {
     return (
@@ -128,44 +127,51 @@ export function DemoSelectorHomePage({
   return (
     <div className="flex gap-2 items-center w-full">
       <div className="flex-1 relative">
-        <Select value={LOCKED_DEMO_ID} disabled>
-          <SelectTrigger className="flex-1 h-10 bg-gray-700 border-gray-600 text-white opacity-75 cursor-not-allowed">
+        <Select value={selectedDemoId || ""} onValueChange={onDemoSelect}>
+          <SelectTrigger className="flex-1 h-10 bg-gray-700 border-gray-600 text-white">
             <div className="flex items-center gap-2 w-full">
-              <Lock className="w-3 h-3 text-gray-400 shrink-0" />
-              <SelectValue>
+              <SelectValue placeholder="Select a demo">
                 {selectedDemo ? (
                   <span className="text-sm font-medium truncate">
-                    {selectedDemo.demo_name}
+                    {selectedDemo.demo_name || selectedDemo.demo_id}
                   </span>
                 ) : (
-                  "Demo locked for study"
+                  "Select a demo"
                 )}
               </SelectValue>
             </div>
           </SelectTrigger>
+          <SelectContent className="bg-gray-800 border-gray-600 max-h-[300px]">
+            {demos.map((demo) => (
+              <SelectItem
+                key={demo.demo_id}
+                value={demo.demo_id}
+                className="text-gray-200 focus:bg-gray-700 focus:text-white cursor-pointer"
+              >
+                <div className="flex flex-col text-left">
+                  <span className="font-medium">
+                    {demo.demo_name || demo.demo_id}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {demo.map_name} •{" "}
+                    {new Date(demo.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              </SelectItem>
+            ))}
+          </SelectContent>
         </Select>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-auto z-10">
-          <InfoTooltip
-            content="Demo selection is currently disabled for this user study. Uploading and parsing new demos requires significant processing time and has been restricted to maintain consistent evaluation conditions."
-            side="bottom"
-          />
-        </div>
       </div>
 
       <div className="relative">
         <Button
           size="icon"
-          disabled
-          className="h-10 w-10 bg-gray-700 opacity-50 cursor-not-allowed shrink-0"
+          onClick={() => selectedDemoId && handleDelete(selectedDemoId)}
+          disabled={!selectedDemoId}
+          className="h-10 w-10 bg-gray-700 hover:bg-red-900/50 hover:text-red-400 border-gray-600 text-gray-400 shrink-0"
         >
           <Trash2 className="w-4 h-4" />
         </Button>
-        <div className="absolute -right-1 -top-1 pointer-events-auto z-10">
-          <InfoTooltip
-            content="Deletion disabled during user study"
-            side="bottom"
-          />
-        </div>
       </div>
 
       <div className="relative">
