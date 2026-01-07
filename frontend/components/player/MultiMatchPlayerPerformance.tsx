@@ -902,7 +902,7 @@ export default function MultiMatchPlayerPerformance({
       </div>
 
       {/* Two Column Layout: Players on left, Chart on right - Equal widths */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="w-full">
         {/* Left Column: Player Cards */}
         {teamPlayers.length > 0 && (
           <PlayerList
