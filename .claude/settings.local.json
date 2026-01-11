@@ -1,8 +1,0 @@
-{
-  "outputStyle": "Learning",
-  "permissions": {
-    "allow": [
-      "Bash(ls:*)"
-    ]
-  }
-}
